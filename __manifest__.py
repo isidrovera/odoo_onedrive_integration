@@ -32,7 +32,7 @@ Funcionalidades:
     # Assets (frontend tipo nube)
     "assets": {
         "web.assets_backend": [
-            "odoo_onedrive_integration/static/src/js/onedrive.js",
+            "odoo_onedrive_integration/static/src/js/**/*",
             "odoo_onedrive_integration/static/src/xml/onedrive_templates.xml",
             "odoo_onedrive_integration/static/src/css/onedrive.css",
         ],
