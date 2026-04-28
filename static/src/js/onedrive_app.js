@@ -1,4 +1,3 @@
-// static/src/js/onedrive_app.js
 /** @odoo-module **/
 import { Component, useState, useRef, onWillStart, onMounted } from "@odoo/owl";
 import { registry } from "@web/core/registry";
@@ -29,19 +28,21 @@ export class OneDriveApp extends Component {
             currentFolder: null,
             path: [],
             view: "grid", // grid | list
-            sortBy: "name", // name | modified | size | type
+            sortBy: "name",
             sortDir: "asc",
             search: "",
             searching: false,
             selected: new Set(),
-            uploadProgress: null, // {name, percent}
+            uploadProgress: null,
             accounts: [],
             accountId: null,
             ctxMenu: { open: false, x: 0, y: 0, file: null },
             dragOver: false,
         });
 
-        // helpers exposed to template
+        this._searchDebounce = null;
+
+        // helpers expuestos al template
         this.getFileIcon = getFileIcon;
         this.formatBytes = formatBytes;
         this.formatDate = formatDate;
@@ -90,13 +91,15 @@ export class OneDriveApp extends Component {
 
     applyFilterAndSort() {
         let list = [...this.state.files];
+        // En modo búsqueda global, los resultados ya vienen filtrados del servidor
+        // No aplicar filtro local sobre ellos
         const q = this.state.search.trim().toLowerCase();
         if (q && !this.state.searching) {
             list = list.filter((f) => f.name.toLowerCase().includes(q));
         }
         const dir = this.state.sortDir === "asc" ? 1 : -1;
         list.sort((a, b) => {
-            // folders first always
+            // carpetas primero
             const af = !!a.folder, bf = !!b.folder;
             if (af !== bf) return af ? -1 : 1;
             let av, bv;
@@ -130,19 +133,47 @@ export class OneDriveApp extends Component {
     // -------- NAVIGATION --------
     async openFolder(file) {
         if (!file.folder) {
-            this.previewFile(file);
+            // Doble click en archivo: abrir en Office Online / navegador (modo edición)
+            this.openExternal(file);
             return;
+        }
+        // Si estábamos en búsqueda global, salir de ese modo
+        if (this.state.searching) {
+            this.state.searching = false;
+            this.state.search = "";
         }
         this.state.path.push({ id: file.id, name: file.name });
         await this.loadFiles(file.id);
     }
 
+    /**
+     * Abre el archivo en su aplicación nativa de Microsoft (Office Online)
+     * usando la webUrl que provee Microsoft Graph. Esto permite EDITAR
+     * archivos de Excel/Word/PowerPoint en el navegador.
+     */
+    openExternal(file) {
+        if (file.webUrl) {
+            window.open(file.webUrl, "_blank", "noopener");
+        } else {
+            // Fallback: vista previa interna
+            this.previewFile(file);
+        }
+    }
+
     async goRoot() {
+        if (this.state.searching) {
+            this.state.searching = false;
+            this.state.search = "";
+        }
         this.state.path = [];
         await this.loadFiles(null);
     }
 
     async goTo(idx) {
+        if (this.state.searching) {
+            this.state.searching = false;
+            this.state.search = "";
+        }
         const target = this.state.path[idx];
         this.state.path = this.state.path.slice(0, idx + 1);
         await this.loadFiles(target.id);
@@ -150,26 +181,50 @@ export class OneDriveApp extends Component {
 
     async goUp() {
         if (this.state.path.length === 0) return;
+        if (this.state.searching) {
+            this.state.searching = false;
+            this.state.search = "";
+        }
         this.state.path.pop();
         const last = this.state.path[this.state.path.length - 1];
         await this.loadFiles(last ? last.id : null);
     }
 
-    // -------- SEARCH --------
+    // -------- SEARCH (GLOBAL) --------
     async onSearchInput(ev) {
         this.state.search = ev.target.value;
-        if (!this.state.search) {
-            this.state.searching = false;
-            this.applyFilterAndSort();
-        } else {
-            this.applyFilterAndSort();
+
+        // Cancelar timer pendiente
+        if (this._searchDebounce) {
+            clearTimeout(this._searchDebounce);
+            this._searchDebounce = null;
         }
+
+        // Si se vacía el input, volver a la carpeta actual
+        if (!this.state.search.trim()) {
+            this.state.searching = false;
+            await this.loadFiles(this.state.currentFolder);
+            return;
+        }
+
+        // Debounce 400ms: búsqueda global mientras escribe
+        this._searchDebounce = setTimeout(async () => {
+            await this._doGlobalSearch(this.state.search.trim());
+        }, 400);
     }
 
     async onSearchSubmit(ev) {
         if (ev.key !== "Enter") return;
+        if (this._searchDebounce) {
+            clearTimeout(this._searchDebounce);
+            this._searchDebounce = null;
+        }
         const q = this.state.search.trim();
         if (!q) return;
+        await this._doGlobalSearch(q);
+    }
+
+    async _doGlobalSearch(q) {
         this.state.searching = true;
         this.state.loading = true;
         try {
@@ -186,10 +241,14 @@ export class OneDriveApp extends Component {
         }
     }
 
-    clearSearch() {
+    async clearSearch() {
+        if (this._searchDebounce) {
+            clearTimeout(this._searchDebounce);
+            this._searchDebounce = null;
+        }
         this.state.search = "";
         this.state.searching = false;
-        this.loadFiles(this.state.currentFolder);
+        await this.loadFiles(this.state.currentFolder);
     }
 
     // -------- SELECTION --------
@@ -200,7 +259,6 @@ export class OneDriveApp extends Component {
         } else {
             this.state.selected.add(file.id);
         }
-        // OWL no detecta cambios en Set; forzar reactivamente
         this.state.selected = new Set(this.state.selected);
     }
 
@@ -226,6 +284,10 @@ export class OneDriveApp extends Component {
     }
 
     // -------- ACTIONS --------
+    /**
+     * Vista previa interna (iframe) - solo lectura.
+     * Para editar use openExternal().
+     */
     previewFile(file) {
         if (file.folder) {
             this.openFolder(file);
@@ -237,9 +299,13 @@ export class OneDriveApp extends Component {
             onDownload: () => this.downloadItem(file),
             onShare: () => this.shareItem(file),
             onDelete: () => this.deleteItem(file),
+            onOpenExternal: () => this.openExternal(file),
         });
     }
 
+    /**
+     * Descargar archivo o carpeta (zip)
+     */
     downloadItem(file) {
         const url = file.folder
             ? `/onedrive/download_folder/${file.id}`
@@ -252,7 +318,7 @@ export class OneDriveApp extends Component {
             title: _t("Nueva carpeta"),
             label: _t("Nombre de la carpeta"),
             placeholder: _t("Mi carpeta"),
-            icon: "fa-folder-plus",
+            icon: "bi-folder-plus",
             confirmLabel: _t("Crear"),
             onConfirm: async (name) => {
                 try {
@@ -275,7 +341,7 @@ export class OneDriveApp extends Component {
             title: _t("Renombrar"),
             label: _t("Nuevo nombre"),
             value: file.name,
-            icon: "fa-pencil",
+            icon: "bi-pencil",
             confirmLabel: _t("Renombrar"),
             onConfirm: async (name) => {
                 try {
@@ -285,7 +351,11 @@ export class OneDriveApp extends Component {
                         account_id: this.state.accountId,
                     });
                     this.notify(_t("Renombrado"), "success");
-                    await this.loadFiles(this.state.currentFolder);
+                    if (this.state.searching) {
+                        await this._doGlobalSearch(this.state.search.trim());
+                    } else {
+                        await this.loadFiles(this.state.currentFolder);
+                    }
                 } catch (e) {
                     this.notify(_t("Error al renombrar"), "danger");
                 }
@@ -298,7 +368,7 @@ export class OneDriveApp extends Component {
             title: _t("Eliminar elemento"),
             message: _t('¿Seguro que deseas eliminar "%s"?', file.name),
             description: _t("Se moverá a la papelera de OneDrive."),
-            icon: "fa-trash",
+            icon: "bi-trash",
             danger: true,
             confirmLabel: _t("Eliminar"),
             onConfirm: async () => {
@@ -308,7 +378,11 @@ export class OneDriveApp extends Component {
                         account_id: this.state.accountId,
                     });
                     this.notify(_t("Elemento eliminado"), "success");
-                    await this.loadFiles(this.state.currentFolder);
+                    if (this.state.searching) {
+                        await this._doGlobalSearch(this.state.search.trim());
+                    } else {
+                        await this.loadFiles(this.state.currentFolder);
+                    }
                 } catch (e) {
                     this.notify(_t("Error al eliminar"), "danger");
                 }
@@ -323,7 +397,7 @@ export class OneDriveApp extends Component {
             title: _t("Eliminar elementos"),
             message: _t("¿Eliminar %s elementos seleccionados?", ids.length),
             danger: true,
-            icon: "fa-trash",
+            icon: "bi-trash",
             confirmLabel: _t("Eliminar todos"),
             onConfirm: async () => {
                 for (const id of ids) {
@@ -332,7 +406,11 @@ export class OneDriveApp extends Component {
                     } catch (e) { /* continue */ }
                 }
                 this.notify(_t("Elementos eliminados"), "success");
-                await this.loadFiles(this.state.currentFolder);
+                if (this.state.searching) {
+                    await this._doGlobalSearch(this.state.search.trim());
+                } else {
+                    await this.loadFiles(this.state.currentFolder);
+                }
             },
         });
     }
@@ -430,7 +508,11 @@ export class OneDriveApp extends Component {
     }
 
     refresh() {
-        this.loadFiles(this.state.currentFolder);
+        if (this.state.searching) {
+            this._doGlobalSearch(this.state.search.trim());
+        } else {
+            this.loadFiles(this.state.currentFolder);
+        }
     }
 }
 
