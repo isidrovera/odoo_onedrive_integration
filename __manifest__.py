@@ -33,13 +33,13 @@ Funcionalidades:
     "assets": {
         "web.assets_backend": [
             "odoo_onedrive_integration/static/src/scss/onedrive_app.scss",
-            "odoo_onedrive_integration/static/src/js/onedrive_app.js",
             "odoo_onedrive_integration/static/src/js/utils/file_utils.js",
             "odoo_onedrive_integration/static/src/js/dialogs/confirm_dialog.js",
             "odoo_onedrive_integration/static/src/js/dialogs/prompt_dialog.js",
             "odoo_onedrive_integration/static/src/js/dialogs/file_preview_dialog.js",
             "odoo_onedrive_integration/static/src/js/dialogs/share_dialog.js",
             "odoo_onedrive_integration/static/src/js/dialogs/properties_dialog.js",
+            "odoo_onedrive_integration/static/src/js/onedrive_app.js",
             "odoo_onedrive_integration/static/src/xml/onedrive_templates.xml",
         ]
     },
