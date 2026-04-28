@@ -32,8 +32,13 @@ Funcionalidades:
     # Assets (frontend tipo nube)
     "assets": {
         "web.assets_backend": [
-            "odoo_onedrive_integration/static/src/js/onedrive_app.js",
-            "odoo_onedrive_integration/static/src/js/**/*",
+            "odoo_onedrive_integration/static/src/js/onedrive.js",
+            "odoo_onedrive_integration/static/src/js/utils/file_utils.js",
+            "odoo_onedrive_integration/static/src/js/dialogs/confirm_dialog.js",
+            "odoo_onedrive_integration/static/src/js/dialogs/prompt_dialog.js",
+            "odoo_onedrive_integration/static/src/js/dialogs/file_preview_dialog.js",
+            "odoo_onedrive_integration/static/src/js/dialogs/share_dialog.js",
+            "odoo_onedrive_integration/static/src/js/dialogs/properties_dialog.js",
             "odoo_onedrive_integration/static/src/xml/onedrive_templates.xml",
             "odoo_onedrive_integration/static/src/css/onedrive.css",
         ],
