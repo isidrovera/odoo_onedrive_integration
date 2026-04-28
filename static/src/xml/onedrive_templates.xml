@@ -5,49 +5,26 @@
 
         <div class="o_onedrive_container">
 
-            <!-- HEADER -->
             <div class="o_onedrive_header">
-
-                <button class="btn btn-secondary" t-on-click="goRoot">
-                    🏠 Inicio
-                </button>
-
-                <button class="btn btn-primary" t-on-click="createFolder">
-                    📁 Nueva carpeta
-                </button>
+                <button class="btn btn-secondary" t-on-click="goRoot">🏠 Inicio</button>
+                <button class="btn btn-primary" t-on-click="createFolder">📁 Nueva carpeta</button>
 
                 <label class="btn btn-success">
                     ⬆ Subir
                     <input type="file" style="display:none;" t-on-change="uploadFile"/>
                 </label>
-
             </div>
 
-            <!-- BREADCRUMB -->
-            <div class="o_onedrive_breadcrumb">
-                <span t-on-click="goRoot" class="breadcrumb-item">Inicio</span>
-
-                <t t-foreach="state.path" t-as="p" t-index="i" t-key="p.id">
-                    <span> / </span>
-                    <span t-on-click="goTo(i)" class="breadcrumb-item">
-                        <t t-esc="p.name"/>
-                    </span>
-                </t>
-            </div>
-
-            <!-- LOADING -->
             <t t-if="state.loading">
                 <div>Cargando...</div>
             </t>
 
-            <!-- FILES -->
             <t t-if="!state.loading">
                 <div class="o_onedrive_grid">
 
                     <t t-foreach="state.files" t-as="file" t-key="file.id">
                         <div class="o_onedrive_item">
 
-                            <!-- 🔥 CORREGIDO -->
                             <div class="o_onedrive_icon"
                                  t-on-click="openFolder(file)">
                                 <t t-if="file.folder">📁</t>
@@ -60,13 +37,14 @@
 
                             <div class="o_onedrive_actions">
 
-                                <!-- 🔥 CORREGIDO -->
-                                <button class="btn btn-sm btn-outline-primary"
-                                        t-on-click="downloadItem(file)">
-                                    ⬇
-                                </button>
+                                <!-- SOLO archivos -->
+                                <t t-if="!file.folder">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            t-on-click="downloadItem(file)">
+                                        ⬇
+                                    </button>
+                                </t>
 
-                                <!-- 🔥 CORREGIDO -->
                                 <button class="btn btn-sm btn-outline-danger"
                                         t-on-click="deleteItem(file)">
                                     ❌
