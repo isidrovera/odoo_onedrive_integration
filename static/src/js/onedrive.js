@@ -129,5 +129,6 @@ export class OneDriveApp extends Component {
         await this.loadFiles(this.state.currentFolder);
     }
 }
+OneDriveApp.template = "odoo_onedrive_integration.onedrive_app";
 
 registry.category("actions").add("onedrive_app", OneDriveApp);
