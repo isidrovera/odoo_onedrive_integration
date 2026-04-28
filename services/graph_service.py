@@ -10,7 +10,6 @@ class GraphService:
     def __init__(self, account):
         self.account = account
 
-        # 🔥 CONFIG DINÁMICA
         self.base_url = account.env['ir.config_parameter'].sudo().get_param(
             'onedrive.graph.base_url',
             default="https://graph.microsoft.com/v1.0"
@@ -37,25 +36,20 @@ class GraphService:
         headers = kwargs.pop("headers", {})
         headers.update(self._headers())
 
-        try:
-            response = requests.request(method, url, headers=headers, **kwargs)
+        response = requests.request(method, url, headers=headers, **kwargs)
 
-            data = {}
-            if response.text:
-                try:
-                    data = response.json()
-                except Exception:
-                    data = {"raw": response.text}
+        data = {}
+        if response.text:
+            try:
+                data = response.json()
+            except Exception:
+                data = {"raw": response.text}
 
-            if response.status_code >= 400:
-                _logger.error("Graph error: %s", data)
-                raise UserError(f"Error Microsoft Graph: {data}")
+        if response.status_code >= 400:
+            _logger.error("Graph error: %s", data)
+            raise UserError(f"Error Microsoft Graph: {data}")
 
-            return data
-
-        except Exception as e:
-            _logger.exception("Graph request failed")
-            raise UserError(str(e))
+        return data
 
     # ---------------------------------------
     # LIST FILES
@@ -91,14 +85,26 @@ class GraphService:
         return self._request("DELETE", f"/me/drive/items/{item_id}")
 
     # ---------------------------------------
-    # DOWNLOAD URL
+    # DOWNLOAD URL (CORREGIDO)
     # ---------------------------------------
     def get_download_url(self, item_id):
         data = self._request("GET", f"/me/drive/items/{item_id}")
-        return data.get("@microsoft.graph.downloadUrl")
+
+        _logger.info("Item data: %s", data)
+
+        # ❌ evitar descargar carpetas
+        if "folder" in data:
+            raise UserError("No se puede descargar una carpeta")
+
+        download_url = data.get("@microsoft.graph.downloadUrl")
+
+        if not download_url:
+            raise UserError(f"No se pudo obtener enlace: {data}")
+
+        return download_url
 
     # ---------------------------------------
-    # UPLOAD SIMPLE
+    # UPLOAD FILE
     # ---------------------------------------
     def upload_file(self, filename, file_content, parent_path="/"):
 
