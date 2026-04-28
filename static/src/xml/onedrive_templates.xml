@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-    <!-- 🔥 IMPORTANTE: nombre EXACTO -->
     <t t-name="odoo_onedrive_integration.onedrive_app" owl="1">
 
         <div class="o_onedrive_container">
@@ -30,7 +29,7 @@
 
                 <t t-foreach="state.path" t-as="p" t-index="i" t-key="p.id">
                     <span> / </span>
-                    <span t-on-click="() => goTo(i)" class="breadcrumb-item">
+                    <span t-on-click="goTo(i)" class="breadcrumb-item">
                         <t t-esc="p.name"/>
                     </span>
                 </t>
@@ -48,8 +47,9 @@
                     <t t-foreach="state.files" t-as="file" t-key="file.id">
                         <div class="o_onedrive_item">
 
+                            <!-- 🔥 CORREGIDO -->
                             <div class="o_onedrive_icon"
-                                 t-on-click="() => openFolder(file)">
+                                 t-on-click="openFolder(file)">
                                 <t t-if="file.folder">📁</t>
                                 <t t-else="">📄</t>
                             </div>
@@ -60,13 +60,15 @@
 
                             <div class="o_onedrive_actions">
 
+                                <!-- 🔥 CORREGIDO -->
                                 <button class="btn btn-sm btn-outline-primary"
-                                        t-on-click="() => downloadItem(file)">
+                                        t-on-click="downloadItem(file)">
                                     ⬇
                                 </button>
 
+                                <!-- 🔥 CORREGIDO -->
                                 <button class="btn btn-sm btn-outline-danger"
-                                        t-on-click="() => deleteItem(file)">
+                                        t-on-click="deleteItem(file)">
                                     ❌
                                 </button>
 
