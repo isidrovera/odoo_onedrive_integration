@@ -1,7 +1,13 @@
-/* === ONEDRIVE APP === */
+/* ============================================================
+   ONEDRIVE APP — ESTILOS COMPLETOS
+   ============================================================ */
+
+/* Contenedor raíz */
 .o_onedrive_app {
     position: relative;
     height: 100%;
+    min-height: 0;
+    width: 100%;
     background: #f8fafc;
     color: #0f172a;
     overflow: hidden;
@@ -10,8 +16,11 @@
     font-size: 14px;
 }
 
-/* TOPBAR */
+/* ============================================================
+   TOPBAR (logo + buscador + refresh)
+   ============================================================ */
 .o_onedrive_app .od_topbar {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -26,11 +35,17 @@
     font-weight: 600;
     font-size: 16px;
     color: #0078d4;
+    flex-shrink: 0;
 }
 .o_onedrive_app .od_logo i { font-size: 22px; }
-.o_onedrive_app .od_topbar_center { flex: 1; display: flex; justify-content: center; }
+.o_onedrive_app .od_topbar_center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+}
 
-/* SEARCH */
+/* SEARCH BOX */
 .o_onedrive_app .od_searchbox {
     width: 100%;
     max-width: 520px;
@@ -40,23 +55,28 @@
     border: 1px solid #e5e7eb;
     border-radius: 999px;
     padding: 6px 14px;
+    transition: all .15s;
 }
 .o_onedrive_app .od_searchbox:focus-within {
     border-color: #0078d4;
     background: #fff;
     box-shadow: 0 0 0 3px rgba(0,120,212,.1);
 }
-.o_onedrive_app .od_searchbox i { color: #64748b; margin-right: 8px; }
+.o_onedrive_app .od_searchbox > i { color: #64748b; margin-right: 8px; flex-shrink: 0; }
 .o_onedrive_app .od_searchbox input {
     flex: 1;
     border: 0;
     background: transparent;
     outline: 0;
     font-size: 14px;
+    min-width: 0;
 }
 
-/* TOOLBAR */
+/* ============================================================
+   TOOLBAR (acciones)
+   ============================================================ */
 .o_onedrive_app .od_toolbar {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -66,9 +86,24 @@
     gap: 12px;
     flex-wrap: wrap;
 }
-.o_onedrive_app .od_toolbar_actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.o_onedrive_app .od_separator { width: 1px; height: 24px; background: #e5e7eb; }
-.o_onedrive_app .od_selcount { font-size: 13px; color: #0078d4; font-weight: 500; }
+.o_onedrive_app .od_toolbar_actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.o_onedrive_app .od_separator {
+    width: 1px;
+    height: 24px;
+    background: #e5e7eb;
+    margin: 0 4px;
+}
+.o_onedrive_app .od_selcount {
+    font-size: 13px;
+    color: #0078d4;
+    font-weight: 500;
+    padding: 0 8px;
+}
 
 /* VIEW SWITCH */
 .o_onedrive_app .od_viewswitch {
@@ -76,6 +111,7 @@
     background: #f8fafc;
     border-radius: 8px;
     padding: 2px;
+    flex-shrink: 0;
 }
 .o_onedrive_app .od_viewswitch .btn {
     border: 0;
@@ -90,8 +126,11 @@
     box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
 
-/* BREADCRUMB */
+/* ============================================================
+   BREADCRUMB
+   ============================================================ */
 .o_onedrive_app .od_breadcrumb {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -121,8 +160,11 @@
     font-size: 12px;
 }
 
-/* UPLOAD BAR */
+/* ============================================================
+   UPLOAD PROGRESS
+   ============================================================ */
 .o_onedrive_app .od_uploadbar {
+    flex: 0 0 auto;
     padding: 10px 20px;
     background: rgba(0,120,212,.05);
     border-bottom: 1px solid #e5e7eb;
@@ -146,7 +188,9 @@
     transition: width .2s;
 }
 
-/* DROP OVERLAY */
+/* ============================================================
+   DROP OVERLAY
+   ============================================================ */
 .o_onedrive_app .od_dropoverlay {
     position: absolute;
     inset: 0;
@@ -158,14 +202,20 @@
     justify-content: center;
     pointer-events: none;
 }
-.o_onedrive_app .od_dropmsg { text-align: center; color: #0078d4; }
+.o_onedrive_app .od_dropmsg {
+    text-align: center;
+    color: #0078d4;
+}
 .o_onedrive_app .od_dropmsg i { font-size: 64px; }
 .o_onedrive_app .od_dropmsg h2 { margin: 8px 0 0; }
 
-/* LOADING / EMPTY */
+/* ============================================================
+   LOADING / EMPTY (placeholders)
+   ============================================================ */
 .o_onedrive_app .od_loading,
 .o_onedrive_app .od_empty {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -173,14 +223,36 @@
     gap: 12px;
     padding: 40px;
     color: #64748b;
+    overflow: auto;
 }
 .o_onedrive_app .od_empty i { font-size: 64px; opacity: .35; }
-.o_onedrive_app .od_empty h3 { margin: 0; color: #0f172a; }
+.o_onedrive_app .od_empty h3 {
+    margin: 0;
+    color: #0f172a;
+    text-align: center;
+    word-break: break-word;
+}
+.o_onedrive_app .od_empty p { margin: 0; text-align: center; }
 
-/* GRID */
+/* SPINNER */
+.o_onedrive_app .od_spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #0078d4;
+    border-radius: 50%;
+    animation: od_spin 0.8s linear infinite;
+}
+@keyframes od_spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   GRID VIEW (kanban)
+   ============================================================ */
 .o_onedrive_app .od_grid {
-    flex: 1;
-    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 16px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -196,7 +268,10 @@
     border-radius: 10px;
     overflow: hidden;
     cursor: pointer;
-    transition: all .15s;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 .o_onedrive_app .od_card:hover {
     transform: translateY(-2px);
@@ -209,7 +284,10 @@
     border-color: #0078d4;
     box-shadow: 0 0 0 3px rgba(0,120,212,.15);
 }
-.o_onedrive_app .od_card.selected .od_card_check { opacity: 1; color: #0078d4; }
+.o_onedrive_app .od_card.selected .od_card_check {
+    opacity: 1;
+    color: #0078d4;
+}
 
 .o_onedrive_app .od_card_check {
     position: absolute;
@@ -231,22 +309,31 @@
 .o_onedrive_app .od_card_check i { font-size: 13px; }
 
 .o_onedrive_app .od_card_thumb {
+    flex: 0 0 90px;
     height: 90px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #f8fafc;
     position: relative;
+    overflow: hidden;
 }
 .o_onedrive_app .od_card_thumb img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
-.o_onedrive_app .od_card_icon { font-size: 44px; line-height: 1; }
+.o_onedrive_app .od_card_icon {
+    font-size: 44px;
+    line-height: 1;
+}
 .o_onedrive_app .od_card_icon i { font-size: inherit; }
 
-.o_onedrive_app .od_card_body { padding: 8px 10px 10px; }
+.o_onedrive_app .od_card_body {
+    flex: 1 1 auto;
+    padding: 8px 10px 10px;
+    min-width: 0;
+}
 .o_onedrive_app .od_card_name {
     font-weight: 500;
     font-size: 13px;
@@ -290,18 +377,25 @@
     border-radius: 5px;
     color: #475569;
 }
-.o_onedrive_app .od_card_actions .btn:hover { background: #f1f5f9; color: #0078d4; }
+.o_onedrive_app .od_card_actions .btn:hover {
+    background: #f1f5f9;
+    color: #0078d4;
+}
 
-/* LIST VIEW */
+/* ============================================================
+   LIST VIEW
+   ============================================================ */
 .o_onedrive_app .od_list {
-    flex: 1;
-    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
     background: #fff;
 }
 .o_onedrive_app .od_list_header,
 .o_onedrive_app .od_list_row {
     display: grid;
-    grid-template-columns: 40px 1fr 160px 120px 200px;
+    grid-template-columns: 40px minmax(0, 1fr) 160px 120px 200px;
     align-items: center;
     padding: 0 16px;
     gap: 12px;
@@ -317,6 +411,7 @@
     font-weight: 600;
     text-transform: uppercase;
     color: #64748b;
+    letter-spacing: .03em;
 }
 .o_onedrive_app .od_list_header .sortable {
     cursor: pointer;
@@ -326,36 +421,89 @@
     gap: 4px;
 }
 .o_onedrive_app .od_list_header .sortable:hover { color: #0078d4; }
+
 .o_onedrive_app .od_list_row {
     height: 48px;
     border-bottom: 1px solid #f1f5f9;
     cursor: pointer;
+    transition: background .12s;
 }
 .o_onedrive_app .od_list_row:hover { background: #f8fafc; }
 .o_onedrive_app .od_list_row.selected { background: rgba(0,120,212,.08); }
-.o_onedrive_app .od_listicon { font-size: 22px; margin-right: 12px; width: 24px; text-align: center; }
-.o_onedrive_app .od_listname { font-weight: 500; }
+
+.o_onedrive_app .od_col_check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.o_onedrive_app .od_col_check i { cursor: pointer; }
+.o_onedrive_app .od_col_name {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+.o_onedrive_app .od_listicon {
+    font-size: 22px;
+    margin-right: 12px;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.o_onedrive_app .od_listname {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
 .o_onedrive_app .od_col_modified,
-.o_onedrive_app .od_col_size { color: #64748b; font-size: 13px; }
-.o_onedrive_app .od_col_actions { display: flex; gap: 2px; justify-content: flex-end; }
+.o_onedrive_app .od_col_size {
+    color: #64748b;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.o_onedrive_app .od_col_actions {
+    display: flex;
+    gap: 2px;
+    justify-content: flex-end;
+}
 .o_onedrive_app .od_col_actions .btn {
-    width: 30px; height: 30px; padding: 0;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: 0; background: transparent; color: #475569;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #475569;
     border-radius: 5px;
 }
-.o_onedrive_app .od_col_actions .btn:hover { background: #f1f5f9; color: #0078d4; }
+.o_onedrive_app .od_col_actions .btn:hover {
+    background: #f1f5f9;
+    color: #0078d4;
+}
 
-/* CONTEXT MENU */
+/* ============================================================
+   CONTEXT MENU
+   ============================================================ */
 .o_onedrive_app .od_ctxmenu {
     position: fixed;
     z-index: 1050;
     min-width: 220px;
+    max-width: 300px;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
     box-shadow: 0 10px 25px rgba(15,23,42,.15);
     padding: 6px;
+    animation: od_fadein .12s;
+}
+@keyframes od_fadein {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
 }
 .o_onedrive_app .od_ctxmenu .btn {
     width: 100%;
@@ -369,94 +517,245 @@
     font-size: 13px;
     color: #0f172a;
     text-align: left;
+    cursor: pointer;
 }
-.o_onedrive_app .od_ctxmenu .btn i { width: 16px; }
+.o_onedrive_app .od_ctxmenu .btn i {
+    width: 16px;
+    flex-shrink: 0;
+}
 .o_onedrive_app .od_ctxmenu .btn:hover { background: #f8fafc; }
 .o_onedrive_app .od_ctxmenu .btn.danger { color: #dc2626; }
 .o_onedrive_app .od_ctxmenu .btn.danger:hover { background: rgba(220,38,38,.08); }
-.o_onedrive_app .od_ctxsep { height: 1px; background: #e5e7eb; margin: 4px 0; }
-
-/* SPINNER */
-.o_onedrive_app .od_spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #e5e7eb;
-    border-top-color: #0078d4;
-    border-radius: 50%;
-    animation: od_spin 0.8s linear infinite;
+.o_onedrive_app .od_ctxsep {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 4px 0;
 }
-@keyframes od_spin { to { transform: rotate(360deg); } }
 
-/* ============== DIALOGS ============== */
-.od_dialog .od_dialog_body { display: flex; gap: 16px; align-items: flex-start; padding: 8px 0 0; }
+/* ============================================================
+   DIALOGS — generic
+   ============================================================ */
+.od_dialog .od_dialog_body {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 8px 0 0;
+}
 .od_dialog .od_dialog_icon {
-    width: 48px; height: 48px; flex-shrink: 0;
-    background: rgba(0,120,212,.1); color: #0078d4;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    background: rgba(0,120,212,.1);
+    color: #0078d4;
     border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .od_dialog .od_dialog_icon i { font-size: 22px; }
-.od_dialog .od_dialog_icon.danger { background: rgba(220,38,38,.1); color: #dc2626; }
-.od_dialog .od_dialog_text { flex: 1; }
-.od_dialog .od_dialog_text h4 { margin: 0 0 6px; font-size: 16px; }
-.od_dialog .od_dialog_text p { margin: 0; color: #64748b; font-size: 13px; }
+.od_dialog .od_dialog_icon.danger {
+    background: rgba(220,38,38,.1);
+    color: #dc2626;
+}
+.od_dialog .od_dialog_text { flex: 1; min-width: 0; }
+.od_dialog .od_dialog_text h4 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    word-break: break-word;
+}
+.od_dialog .od_dialog_text p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+}
 .od_dialog .od_label {
-    display: block; font-size: 12px; font-weight: 600; color: #64748b;
-    text-transform: uppercase; margin: 0 0 6px; letter-spacing: .03em;
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    margin: 0 0 6px;
+    letter-spacing: .03em;
 }
 
-/* PREVIEW DIALOG */
+/* ============================================================
+   PREVIEW DIALOG
+   ============================================================ */
 .od_preview_dialog .modal-body { padding: 0 !important; }
-.od_preview_body { display: flex; flex-direction: column; height: 70vh; }
+.od_preview_body {
+    display: flex;
+    flex-direction: column;
+    height: 70vh;
+    min-height: 400px;
+}
 .od_preview_loading,
 .od_preview_error {
-    flex: 1;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 12px; color: #64748b;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #64748b;
 }
 .od_preview_error i { font-size: 64px; }
-.od_preview_content { flex: 1; background: #1e293b; }
-.od_preview_content iframe { width: 100%; height: 100%; border: 0; }
-.od_preview_info {
-    padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e5e7eb;
+.od_preview_error h3 { margin: 0; color: #0f172a; word-break: break-word; }
+.od_preview_content {
+    flex: 1 1 auto;
+    min-height: 0;
+    background: #1e293b;
 }
-.od_info_block { display: flex; align-items: center; gap: 12px; }
-.od_info_block i { font-size: 28px; }
-.od_info_name { font-weight: 600; }
-.od_info_meta { font-size: 12px; color: #64748b; }
+.od_preview_content iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.od_preview_info {
+    flex: 0 0 auto;
+    padding: 12px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e5e7eb;
+}
+.od_info_block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+.od_info_block > i { font-size: 28px; flex-shrink: 0; }
+.od_info_block > div { min-width: 0; flex: 1; }
+.od_info_name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.od_info_meta {
+    font-size: 12px;
+    color: #64748b;
+}
 
-/* SHARE DIALOG */
-.od_share_body h4 { margin: 0 0 16px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-.od_radio_group { display: flex; flex-direction: column; gap: 6px; }
+/* ============================================================
+   SHARE DIALOG
+   ============================================================ */
+.od_share_body h4 {
+    margin: 0 0 16px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    word-break: break-word;
+}
+.od_radio_group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
 .od_radio {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
-    cursor: pointer; margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 0;
+    transition: all .12s;
 }
 .od_radio:hover { background: #f8fafc; }
 .od_radio input { margin: 0; accent-color: #0078d4; }
-.od_radio span { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.od_radio span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
 .od_radio span i { color: #64748b; }
+
 .od_link_box {
-    display: flex; gap: 8px; margin-top: 16px;
-    padding: 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e5e7eb;
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
 }
 .od_link_box input {
-    flex: 1; border: 0; background: transparent; padding: 6px 10px;
-    font-family: monospace; font-size: 12px; color: #0f172a; outline: 0;
+    flex: 1;
+    border: 0;
+    background: transparent;
+    padding: 6px 10px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #0f172a;
+    outline: 0;
+    min-width: 0;
 }
 
-/* PROPS DIALOG */
+/* ============================================================
+   PROPERTIES DIALOG
+   ============================================================ */
 .od_props_header {
-    display: flex; align-items: center; gap: 12px;
-    padding-bottom: 16px; margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
     border-bottom: 1px solid #e5e7eb;
+    min-width: 0;
 }
-.od_props_header i { font-size: 36px; }
-.od_props_header h4 { margin: 0; font-size: 15px; word-break: break-word; }
-.od_props_table { width: 100%; font-size: 13px; }
-.od_props_table th, .od_props_table td { padding: 8px 4px; text-align: left; vertical-align: top; }
-.od_props_table th { color: #64748b; font-weight: 500; width: 35%; }
-.od_props_table td { color: #0f172a; word-break: break-word; }
-.od_props_table a { color: #0078d4; text-decoration: none; }
+.od_props_header i { font-size: 36px; flex-shrink: 0; }
+.od_props_header h4 {
+    margin: 0;
+    font-size: 15px;
+    word-break: break-word;
+    min-width: 0;
+}
+.od_props_table {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+.od_props_table th,
+.od_props_table td {
+    padding: 8px 4px;
+    text-align: left;
+    vertical-align: top;
+}
+.od_props_table th {
+    color: #64748b;
+    font-weight: 500;
+    width: 35%;
+}
+.od_props_table td {
+    color: #0f172a;
+    word-break: break-word;
+}
+.od_props_table a {
+    color: #0078d4;
+    text-decoration: none;
+}
 .od_props_table a:hover { text-decoration: underline; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+    .o_onedrive_app .od_topbar { padding: 10px 12px; gap: 10px; }
+    .o_onedrive_app .od_logo span { display: none; }
+    .o_onedrive_app .od_toolbar { padding: 8px 12px; }
+    .o_onedrive_app .od_breadcrumb { padding: 8px 12px; }
+    .o_onedrive_app .od_grid { padding: 10px; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .o_onedrive_app .od_card_thumb { flex: 0 0 70px; height: 70px; }
+    .o_onedrive_app .od_card_icon { font-size: 36px; }
+    .o_onedrive_app .od_list_header,
+    .o_onedrive_app .od_list_row {
+        grid-template-columns: 30px minmax(0, 1fr) 80px;
+        padding: 0 10px;
+    }
+    .o_onedrive_app .od_col_modified,
+    .o_onedrive_app .od_col_actions { display: none; }
+}
