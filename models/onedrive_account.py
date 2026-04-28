@@ -1,6 +1,8 @@
 import requests
 import logging
 from datetime import timedelta
+from urllib.parse import urlencode
+
 from odoo import models, fields
 from odoo.exceptions import UserError
 
@@ -36,6 +38,12 @@ class OneDriveAccount(models.Model):
         return f"{base_url}/onedrive/callback"
 
     def _get_authority_url(self):
+        self.ensure_one()
+
+        if not self.tenant_id:
+            raise UserError("Debe ingresar Tenant ID")
+
+        # 🔥 FORZAMOS URL CORRECTA
         return f"https://login.microsoftonline.com/{self.tenant_id}"
 
     def _get_scope(self):
@@ -45,20 +53,24 @@ class OneDriveAccount(models.Model):
         )
 
     # ---------------------------------------
-    # AUTH URL
+    # AUTH URL (CORREGIDO)
     # ---------------------------------------
 
     def get_auth_url(self):
         self.ensure_one()
 
-        return (
-            f"{self._get_authority_url()}/oauth2/v2.0/authorize"
-            f"?client_id={self.client_id}"
-            f"&response_type=code"
-            f"&redirect_uri={self.redirect_uri}"
-            f"&response_mode=query"
-            f"&scope={self._get_scope()}"
-        )
+        base_url = f"{self._get_authority_url()}/oauth2/v2.0/authorize"
+
+        params = {
+            "client_id": self.client_id,
+            "response_type": "code",
+            "redirect_uri": self.redirect_uri,
+            "response_mode": "query",
+            "scope": self._get_scope(),
+        }
+
+        # 🔥 urlencode evita errores de URL mal formada
+        return f"{base_url}?{urlencode(params)}"
 
     # ---------------------------------------
     # TOKEN
@@ -81,6 +93,7 @@ class OneDriveAccount(models.Model):
         result = res.json()
 
         if "access_token" not in result:
+            _logger.error("Token error: %s", result)
             raise UserError(f"Error token: {result}")
 
         self._save_token(result)
@@ -101,6 +114,7 @@ class OneDriveAccount(models.Model):
         result = res.json()
 
         if "access_token" not in result:
+            _logger.error("Refresh error: %s", result)
             raise UserError(f"Error refresh: {result}")
 
         self._save_token(result)
@@ -121,6 +135,7 @@ class OneDriveAccount(models.Model):
             raise UserError("Cuenta no autenticada")
 
         if fields.Datetime.now() >= self.token_expiry:
+            _logger.info("Token expirado, refrescando...")
             self.refresh_access_token()
 
         return self.access_token
@@ -131,8 +146,14 @@ class OneDriveAccount(models.Model):
 
     def action_connect_onedrive(self):
         self.ensure_one()
+
+        url = self.get_auth_url()
+
+        # 🔥 LOG PARA DEBUG (IMPORTANTE)
+        _logger.info("OAuth URL: %s", url)
+
         return {
             "type": "ir.actions.act_url",
-            "url": f"/onedrive/login/{self.id}",
+            "url": url,
             "target": "self",
         }
