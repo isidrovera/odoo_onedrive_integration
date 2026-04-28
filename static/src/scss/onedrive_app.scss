@@ -1,416 +1,462 @@
+/* === ONEDRIVE APP === */
 .o_onedrive_app {
-    --od-bg: #f8fafc;
-    --od-surface: #ffffff;
-    --od-border: #e5e7eb;
-    --od-text: #0f172a;
-    --od-muted: #64748b;
-    --od-primary: #0078d4;
-    --od-primary-dark: #005a9e;
-    --od-danger: #dc2626;
-    --od-success: #16a34a;
-    --od-radius: 10px;
-    --od-shadow: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
-    --od-shadow-lg: 0 10px 25px rgba(15,23,42,.1), 0 4px 10px rgba(15,23,42,.04);
-
     position: relative;
     height: 100%;
-    background: var(--od-bg);
-    color: var(--od-text);
+    background: #f8fafc;
+    color: #0f172a;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     font-size: 14px;
-
-    .od_topbar {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 12px 20px;
-        background: var(--od-surface);
-        border-bottom: 1px solid var(--od-border);
-
-        .od_logo {
-            display: flex; align-items: center; gap: 10px;
-            font-weight: 600; font-size: 16px; color: var(--od-primary);
-            i { font-size: 22px; }
-        }
-
-        .od_topbar_center { flex: 1; display: flex; justify-content: center; }
-        .od_topbar_right { display: flex; gap: 8px; }
-    }
-
-    .od_searchbox {
-        position: relative;
-        width: 100%; max-width: 520px;
-        display: flex; align-items: center;
-        background: var(--od-bg);
-        border: 1px solid var(--od-border);
-        border-radius: 999px;
-        padding: 8px 16px;
-        transition: all .2s;
-
-        &:focus-within {
-            border-color: var(--od-primary);
-            background: var(--od-surface);
-            box-shadow: 0 0 0 3px rgba(0,120,212,.1);
-        }
-
-        > i { color: var(--od-muted); margin-right: 10px; }
-
-        input {
-            flex: 1; border: 0; background: transparent; outline: 0;
-            font-size: 14px; color: var(--od-text);
-            &::placeholder { color: var(--od-muted); }
-        }
-
-        .od_clearsearch {
-            border: 0; background: transparent; cursor: pointer;
-            color: var(--od-muted); padding: 4px;
-            &:hover { color: var(--od-danger); }
-        }
-    }
-
-   
-    .od_toolbar {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 20px;
-        background: var(--od-surface);
-        border-bottom: 1px solid var(--od-border);
-
-        .od_toolbar_actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .od_toolbar_right { display: flex; align-items: center; gap: 8px; }
-        .od_separator { width: 1px; height: 24px; background: var(--od-border); margin: 0 4px; }
-        .od_selcount { font-size: 13px; color: var(--od-primary); font-weight: 500; padding: 0 8px; }
-    }
-
-  
-    .od_btn {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 8px 14px;
-        background: var(--od-surface);
-        color: var(--od-text);
-        border: 1px solid var(--od-border);
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 13px; font-weight: 500;
-        transition: all .15s;
-
-        &:hover { background: var(--od-bg); border-color: #cbd5e1; }
-        &:disabled { opacity: .5; cursor: not-allowed; }
-    }
-    .od_btn_primary {
-        background: var(--od-primary); color: #fff; border-color: var(--od-primary);
-        &:hover { background: var(--od-primary-dark); border-color: var(--od-primary-dark); }
-    }
-    .od_btn_danger {
-        background: var(--od-danger); color: #fff; border-color: var(--od-danger);
-        &:hover { background: #b91c1c; border-color: #b91c1c; }
-    }
-    .od_iconbtn {
-        width: 32px; height: 32px; display: inline-flex; align-items: center;
-        justify-content: center; padding: 0; border: 0; background: transparent;
-        border-radius: 6px; cursor: pointer; color: var(--od-text);
-        transition: background .15s;
-        &:hover { background: var(--od-bg); }
-    }
-
-   
-    .od_viewswitch {
-        display: flex; gap: 2px; background: var(--od-bg); border-radius: 8px; padding: 2px;
-        button {
-            border: 0; background: transparent; padding: 6px 10px; cursor: pointer;
-            border-radius: 6px; color: var(--od-muted);
-            &.active { background: var(--od-surface); color: var(--od-primary); box-shadow: var(--od-shadow); }
-        }
-    }
-
-  
-    .od_breadcrumb {
-        display: flex; align-items: center; gap: 6px;
-        padding: 10px 20px;
-        background: var(--od-surface);
-        border-bottom: 1px solid var(--od-border);
-        font-size: 13px;
-
-        .od_crumb {
-            color: var(--od-primary); cursor: pointer; padding: 4px 8px; border-radius: 6px;
-            display: inline-flex; align-items: center; gap: 4px;
-            &:hover { background: var(--od-bg); }
-        }
-        .od_crumb_sep { color: var(--od-muted); }
-        .od_searchbadge {
-            margin-left: auto;
-            background: rgba(0,120,212,.1); color: var(--od-primary);
-            padding: 4px 10px; border-radius: 999px; font-size: 12px;
-        }
-    }
-
-  
-    .od_uploadbar {
-        padding: 10px 20px; background: rgba(0,120,212,.05); border-bottom: 1px solid var(--od-border);
-        .od_uploadbar_info { font-size: 13px; display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
-        .od_progress { height: 4px; background: rgba(0,120,212,.15); border-radius: 999px; overflow: hidden; }
-        .od_progress_bar { height: 100%; background: var(--od-primary); transition: width .2s; }
-    }
-
-  
-    .od_dropoverlay {
-        position: absolute; inset: 0; z-index: 100;
-        background: rgba(0,120,212,.1);
-        backdrop-filter: blur(4px);
-        border: 3px dashed var(--od-primary);
-        display: flex; align-items: center; justify-content: center;
-        pointer-events: none;
-        .od_dropmsg {
-            text-align: center; color: var(--od-primary);
-            i { font-size: 64px; margin-bottom: 16px; }
-            h2 { margin: 0; }
-        }
-    }
-
-    
-    .od_loading, .od_empty {
-        flex: 1; display: flex; flex-direction: column; align-items: center;
-        justify-content: center; gap: 16px; padding: 40px; color: var(--od-muted);
-        i { font-size: 64px; opacity: .4; }
-        h3 { margin: 0; color: var(--od-text); }
-    }
-    .od_spinner {
-        width: 40px; height: 40px; border: 3px solid var(--od-border);
-        border-top-color: var(--od-primary); border-radius: 50%;
-        animation: od_spin 0.8s linear infinite;
-    }
-    @keyframes od_spin { to { transform: rotate(360deg); } }
-
-   
-    .od_grid {
-        flex: 1; overflow: auto; padding: 20px;
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 16px;
-        align-content: start;
-    }
-    .od_card {
-        position: relative;
-        background: var(--od-surface);
-        border: 1px solid var(--od-border);
-        border-radius: var(--od-radius);
-        overflow: hidden;
-        cursor: pointer;
-        transition: all .2s;
-
-        &:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--od-shadow-lg);
-            border-color: #cbd5e1;
-            .od_card_check, .od_card_actions { opacity: 1; }
-        }
-        &.selected {
-            border-color: var(--od-primary);
-            box-shadow: 0 0 0 3px rgba(0,120,212,.15);
-            .od_card_check { opacity: 1; color: var(--od-primary); }
-        }
-
-        .od_card_check {
-            position: absolute; top: 8px; left: 8px; z-index: 2;
-            width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-            background: rgba(255,255,255,.95); border-radius: 6px; cursor: pointer;
-            opacity: 0; transition: opacity .15s; box-shadow: var(--od-shadow);
-            i { font-size: 14px; }
-            &:hover { color: var(--od-primary); }
-        }
-
-        .od_card_thumb {
-            height: 130px; display: flex; align-items: center; justify-content: center;
-            background: var(--od-bg); position: relative;
-            img { max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; }
-            .od_card_icon { font-size: 56px; }
-        }
-
-        .od_card_body {
-            padding: 10px 12px;
-            .od_card_name {
-                font-weight: 500; font-size: 13px;
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-                margin-bottom: 4px;
-            }
-            .od_card_meta { font-size: 11px; color: var(--od-muted); }
-        }
-
-        .od_card_actions {
-            position: absolute; top: 8px; right: 8px;
-            display: flex; gap: 2px;
-            background: rgba(255,255,255,.95);
-            border-radius: 6px; padding: 2px;
-            opacity: 0; transition: opacity .15s; box-shadow: var(--od-shadow);
-            .od_iconbtn { width: 26px; height: 26px; }
-        }
-    }
-
-    
-    .od_list {
-        flex: 1; overflow: auto;
-        background: var(--od-surface);
-    }
-    .od_list_header, .od_list_row {
-        display: grid;
-        grid-template-columns: 40px 1fr 160px 120px 180px;
-        align-items: center;
-        padding: 0 16px;
-        gap: 12px;
-    }
-    .od_list_header {
-        position: sticky; top: 0; z-index: 1;
-        background: var(--od-surface);
-        border-bottom: 1px solid var(--od-border);
-        height: 40px;
-        font-size: 12px; font-weight: 600; text-transform: uppercase;
-        color: var(--od-muted); letter-spacing: .03em;
-        .sortable { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px;
-            &:hover { color: var(--od-primary); }
-        }
-    }
-    .od_list_row {
-        height: 48px;
-        border-bottom: 1px solid var(--od-border);
-        cursor: pointer;
-        transition: background .12s;
-        &:hover { background: var(--od-bg); }
-        &.selected { background: rgba(0,120,212,.08); }
-
-        .od_listicon { font-size: 22px; margin-right: 12px; width: 24px; text-align: center; }
-        .od_listname { font-weight: 500; }
-        .od_col_modified, .od_col_size { color: var(--od-muted); font-size: 13px; }
-        .od_col_actions { display: flex; gap: 2px; justify-content: flex-end; }
-    }
-
-    
-    .od_ctxmenu {
-        position: fixed; z-index: 1000;
-        min-width: 220px;
-        background: var(--od-surface);
-        border: 1px solid var(--od-border);
-        border-radius: 10px;
-        box-shadow: var(--od-shadow-lg);
-        padding: 6px;
-        animation: od_fadein .12s;
-
-        button {
-            width: 100%; display: flex; align-items: center; gap: 10px;
-            padding: 8px 12px; border: 0; background: transparent;
-            cursor: pointer; border-radius: 6px; font-size: 13px;
-            color: var(--od-text); text-align: left;
-            i { width: 16px; }
-            &:hover { background: var(--od-bg); }
-            &.danger { color: var(--od-danger); &:hover { background: rgba(220,38,38,.08); } }
-        }
-        .od_ctxsep { height: 1px; background: var(--od-border); margin: 4px 0; }
-    }
-    @keyframes od_fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 }
 
+/* TOPBAR */
+.o_onedrive_app .od_topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+}
+.o_onedrive_app .od_logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    color: #0078d4;
+}
+.o_onedrive_app .od_logo i { font-size: 22px; }
+.o_onedrive_app .od_topbar_center { flex: 1; display: flex; justify-content: center; }
 
-.od_dialog {
-    .od_dialog_body {
-        display: flex; gap: 16px; align-items: flex-start; padding: 8px 0;
-    }
-    .od_dialog_icon {
-        width: 48px; height: 48px; flex-shrink: 0;
-        background: rgba(0,120,212,.1); color: #0078d4;
-        border-radius: 12px; display: flex; align-items: center; justify-content: center;
-        i { font-size: 22px; }
-        &.danger { background: rgba(220,38,38,.1); color: #dc2626; }
-    }
-    .od_dialog_text { flex: 1;
-        h4 { margin: 0 0 6px; font-size: 16px; }
-        p { margin: 0; color: #64748b; font-size: 13px; }
-    }
-    .od_label { display: block; font-size: 12px; font-weight: 600; color: #64748b;
-        text-transform: uppercase; margin-bottom: 6px; letter-spacing: .03em; }
-    .od_input {
-        width: 100%; padding: 10px 12px;
-        border: 1px solid #e5e7eb; border-radius: 8px;
-        font-size: 14px; outline: 0; transition: all .15s;
-        &:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,.1); }
-    }
-    .od_btn {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 8px 14px; background: #fff; color: #0f172a;
-        border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer;
-        font-size: 13px; font-weight: 500;
-        &:hover { background: #f8fafc; }
-    }
-    .od_btn_primary { background: #0078d4; color: #fff; border-color: #0078d4;
-        &:hover { background: #005a9e; border-color: #005a9e; } }
-    .od_btn_danger { background: #dc2626; color: #fff; border-color: #dc2626;
-        &:hover { background: #b91c1c; border-color: #b91c1c; } }
+/* SEARCH */
+.o_onedrive_app .od_searchbox {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 6px 14px;
+}
+.o_onedrive_app .od_searchbox:focus-within {
+    border-color: #0078d4;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(0,120,212,.1);
+}
+.o_onedrive_app .od_searchbox i { color: #64748b; margin-right: 8px; }
+.o_onedrive_app .od_searchbox input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    outline: 0;
+    font-size: 14px;
 }
 
-.od_preview_dialog {
-    .modal-body { padding: 0 !important; }
-    .od_preview_body { display: flex; flex-direction: column; height: 70vh; }
-    .od_preview_loading, .od_preview_error {
-        flex: 1; display: flex; flex-direction: column; align-items: center;
-        justify-content: center; gap: 12px; color: #64748b;
-        i { font-size: 64px; }
-    }
-    .od_preview_content { flex: 1; background: #1e293b;
-        iframe { width: 100%; height: 100%; border: 0; }
-    }
-    .od_preview_info {
-        padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e5e7eb;
-        .od_info_block { display: flex; align-items: center; gap: 12px;
-            > i { font-size: 28px; }
-            .od_info_name { font-weight: 600; }
-            .od_info_meta { font-size: 12px; color: #64748b; }
-        }
-    }
-    .od_spinner {
-        width: 40px; height: 40px; border: 3px solid #e5e7eb;
-        border-top-color: #0078d4; border-radius: 50%;
-        animation: od_spin 0.8s linear infinite;
-    }
+/* TOOLBAR */
+.o_onedrive_app .od_toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.o_onedrive_app .od_toolbar_actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.o_onedrive_app .od_separator { width: 1px; height: 24px; background: #e5e7eb; }
+.o_onedrive_app .od_selcount { font-size: 13px; color: #0078d4; font-weight: 500; }
+
+/* VIEW SWITCH */
+.o_onedrive_app .od_viewswitch {
+    display: inline-flex;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 2px;
+}
+.o_onedrive_app .od_viewswitch .btn {
+    border: 0;
+    padding: 6px 12px;
+    color: #64748b;
+    background: transparent;
+    border-radius: 6px;
+}
+.o_onedrive_app .od_viewswitch .btn.active {
+    background: #fff;
+    color: #0078d4;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
 
-.od_share_body {
-    h4 { margin: 0 0 16px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-    .od_share_options .od_label { display: block; font-size: 12px; font-weight: 600;
-        color: #64748b; text-transform: uppercase; margin: 12px 0 6px; }
-    .od_radio_group { display: flex; flex-direction: column; gap: 6px; }
-    .od_radio {
-        display: flex; align-items: center; gap: 10px;
-        padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
-        cursor: pointer; transition: all .15s;
-        &:hover { background: #f8fafc; }
-        input { margin: 0; accent-color: #0078d4; }
-        span { display: flex; align-items: center; gap: 8px; font-size: 14px;
-            i { color: #64748b; }
-        }
-        &:has(input:checked) { border-color: #0078d4; background: rgba(0,120,212,.05); }
-    }
-    .od_link_box {
-        display: flex; gap: 8px; margin-top: 16px;
-        padding: 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e5e7eb;
-        input { flex: 1; border: 0; background: transparent; padding: 6px 10px;
-            font-family: monospace; font-size: 12px; color: #0f172a; outline: 0; }
-    }
+/* BREADCRUMB */
+.o_onedrive_app .od_breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 13px;
+    flex-wrap: wrap;
+}
+.o_onedrive_app .od_crumb {
+    color: #0078d4;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.o_onedrive_app .od_crumb:hover { background: #f1f5f9; }
+.o_onedrive_app .od_crumb_sep { color: #94a3b8; }
+.o_onedrive_app .od_searchbadge {
+    margin-left: auto;
+    background: rgba(0,120,212,.1);
+    color: #0078d4;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
 }
 
-
-.od_props_body {
-    .od_props_header {
-        display: flex; align-items: center; gap: 12px;
-        padding-bottom: 16px; margin-bottom: 16px;
-        border-bottom: 1px solid #e5e7eb;
-        i { font-size: 36px; }
-        h4 { margin: 0; font-size: 15px; word-break: break-word; }
-    }
-    .od_props_table {
-        width: 100%; font-size: 13px;
-        th, td { padding: 8px 4px; text-align: left; vertical-align: top; }
-        th { color: #64748b; font-weight: 500; width: 35%; }
-        td { color: #0f172a; word-break: break-word; }
-        a { color: #0078d4; text-decoration: none;
-            &:hover { text-decoration: underline; } }
-    }
+/* UPLOAD BAR */
+.o_onedrive_app .od_uploadbar {
+    padding: 10px 20px;
+    background: rgba(0,120,212,.05);
+    border-bottom: 1px solid #e5e7eb;
 }
+.o_onedrive_app .od_uploadbar_info {
+    font-size: 13px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.o_onedrive_app .od_progress {
+    height: 4px;
+    background: rgba(0,120,212,.15);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.o_onedrive_app .od_progress_bar {
+    height: 100%;
+    background: #0078d4;
+    transition: width .2s;
+}
+
+/* DROP OVERLAY */
+.o_onedrive_app .od_dropoverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,120,212,.1);
+    border: 3px dashed #0078d4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.o_onedrive_app .od_dropmsg { text-align: center; color: #0078d4; }
+.o_onedrive_app .od_dropmsg i { font-size: 64px; }
+.o_onedrive_app .od_dropmsg h2 { margin: 8px 0 0; }
+
+/* LOADING / EMPTY */
+.o_onedrive_app .od_loading,
+.o_onedrive_app .od_empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px;
+    color: #64748b;
+}
+.o_onedrive_app .od_empty i { font-size: 64px; opacity: .35; }
+.o_onedrive_app .od_empty h3 { margin: 0; color: #0f172a; }
+
+/* GRID */
+.o_onedrive_app .od_grid {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    align-content: start;
+}
+
+/* CARD */
+.o_onedrive_app .od_card {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all .15s;
+}
+.o_onedrive_app .od_card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(15,23,42,.08);
+    border-color: #cbd5e1;
+}
+.o_onedrive_app .od_card:hover .od_card_check,
+.o_onedrive_app .od_card:hover .od_card_actions { opacity: 1; }
+.o_onedrive_app .od_card.selected {
+    border-color: #0078d4;
+    box-shadow: 0 0 0 3px rgba(0,120,212,.15);
+}
+.o_onedrive_app .od_card.selected .od_card_check { opacity: 1; color: #0078d4; }
+
+.o_onedrive_app .od_card_check {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 2;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.95);
+    border-radius: 5px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s;
+    box-shadow: 0 1px 2px rgba(0,0,0,.1);
+}
+.o_onedrive_app .od_card_check i { font-size: 13px; }
+
+.o_onedrive_app .od_card_thumb {
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    position: relative;
+}
+.o_onedrive_app .od_card_thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.o_onedrive_app .od_card_icon { font-size: 44px; line-height: 1; }
+.o_onedrive_app .od_card_icon i { font-size: inherit; }
+
+.o_onedrive_app .od_card_body { padding: 8px 10px 10px; }
+.o_onedrive_app .od_card_name {
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.3;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+.o_onedrive_app .od_card_meta {
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.o_onedrive_app .od_card_actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 2px;
+    background: rgba(255,255,255,.95);
+    border-radius: 6px;
+    padding: 2px;
+    opacity: 0;
+    transition: opacity .15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+.o_onedrive_app .od_card_actions .btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    border-radius: 5px;
+    color: #475569;
+}
+.o_onedrive_app .od_card_actions .btn:hover { background: #f1f5f9; color: #0078d4; }
+
+/* LIST VIEW */
+.o_onedrive_app .od_list {
+    flex: 1;
+    overflow: auto;
+    background: #fff;
+}
+.o_onedrive_app .od_list_header,
+.o_onedrive_app .od_list_row {
+    display: grid;
+    grid-template-columns: 40px 1fr 160px 120px 200px;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+}
+.o_onedrive_app .od_list_header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    height: 40px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.o_onedrive_app .od_list_header .sortable {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.o_onedrive_app .od_list_header .sortable:hover { color: #0078d4; }
+.o_onedrive_app .od_list_row {
+    height: 48px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+}
+.o_onedrive_app .od_list_row:hover { background: #f8fafc; }
+.o_onedrive_app .od_list_row.selected { background: rgba(0,120,212,.08); }
+.o_onedrive_app .od_listicon { font-size: 22px; margin-right: 12px; width: 24px; text-align: center; }
+.o_onedrive_app .od_listname { font-weight: 500; }
+.o_onedrive_app .od_col_modified,
+.o_onedrive_app .od_col_size { color: #64748b; font-size: 13px; }
+.o_onedrive_app .od_col_actions { display: flex; gap: 2px; justify-content: flex-end; }
+.o_onedrive_app .od_col_actions .btn {
+    width: 30px; height: 30px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; background: transparent; color: #475569;
+    border-radius: 5px;
+}
+.o_onedrive_app .od_col_actions .btn:hover { background: #f1f5f9; color: #0078d4; }
+
+/* CONTEXT MENU */
+.o_onedrive_app .od_ctxmenu {
+    position: fixed;
+    z-index: 1050;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(15,23,42,.15);
+    padding: 6px;
+}
+.o_onedrive_app .od_ctxmenu .btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 0;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #0f172a;
+    text-align: left;
+}
+.o_onedrive_app .od_ctxmenu .btn i { width: 16px; }
+.o_onedrive_app .od_ctxmenu .btn:hover { background: #f8fafc; }
+.o_onedrive_app .od_ctxmenu .btn.danger { color: #dc2626; }
+.o_onedrive_app .od_ctxmenu .btn.danger:hover { background: rgba(220,38,38,.08); }
+.o_onedrive_app .od_ctxsep { height: 1px; background: #e5e7eb; margin: 4px 0; }
+
+/* SPINNER */
+.o_onedrive_app .od_spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #0078d4;
+    border-radius: 50%;
+    animation: od_spin 0.8s linear infinite;
+}
+@keyframes od_spin { to { transform: rotate(360deg); } }
+
+/* ============== DIALOGS ============== */
+.od_dialog .od_dialog_body { display: flex; gap: 16px; align-items: flex-start; padding: 8px 0 0; }
+.od_dialog .od_dialog_icon {
+    width: 48px; height: 48px; flex-shrink: 0;
+    background: rgba(0,120,212,.1); color: #0078d4;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+}
+.od_dialog .od_dialog_icon i { font-size: 22px; }
+.od_dialog .od_dialog_icon.danger { background: rgba(220,38,38,.1); color: #dc2626; }
+.od_dialog .od_dialog_text { flex: 1; }
+.od_dialog .od_dialog_text h4 { margin: 0 0 6px; font-size: 16px; }
+.od_dialog .od_dialog_text p { margin: 0; color: #64748b; font-size: 13px; }
+.od_dialog .od_label {
+    display: block; font-size: 12px; font-weight: 600; color: #64748b;
+    text-transform: uppercase; margin: 0 0 6px; letter-spacing: .03em;
+}
+
+/* PREVIEW DIALOG */
+.od_preview_dialog .modal-body { padding: 0 !important; }
+.od_preview_body { display: flex; flex-direction: column; height: 70vh; }
+.od_preview_loading,
+.od_preview_error {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; color: #64748b;
+}
+.od_preview_error i { font-size: 64px; }
+.od_preview_content { flex: 1; background: #1e293b; }
+.od_preview_content iframe { width: 100%; height: 100%; border: 0; }
+.od_preview_info {
+    padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e5e7eb;
+}
+.od_info_block { display: flex; align-items: center; gap: 12px; }
+.od_info_block i { font-size: 28px; }
+.od_info_name { font-weight: 600; }
+.od_info_meta { font-size: 12px; color: #64748b; }
+
+/* SHARE DIALOG */
+.od_share_body h4 { margin: 0 0 16px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.od_radio_group { display: flex; flex-direction: column; gap: 6px; }
+.od_radio {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
+    cursor: pointer; margin: 0;
+}
+.od_radio:hover { background: #f8fafc; }
+.od_radio input { margin: 0; accent-color: #0078d4; }
+.od_radio span { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.od_radio span i { color: #64748b; }
+.od_link_box {
+    display: flex; gap: 8px; margin-top: 16px;
+    padding: 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e5e7eb;
+}
+.od_link_box input {
+    flex: 1; border: 0; background: transparent; padding: 6px 10px;
+    font-family: monospace; font-size: 12px; color: #0f172a; outline: 0;
+}
+
+/* PROPS DIALOG */
+.od_props_header {
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 16px; margin-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+.od_props_header i { font-size: 36px; }
+.od_props_header h4 { margin: 0; font-size: 15px; word-break: break-word; }
+.od_props_table { width: 100%; font-size: 13px; }
+.od_props_table th, .od_props_table td { padding: 8px 4px; text-align: left; vertical-align: top; }
+.od_props_table th { color: #64748b; font-weight: 500; width: 35%; }
+.od_props_table td { color: #0f172a; word-break: break-word; }
+.od_props_table a { color: #0078d4; text-decoration: none; }
+.od_props_table a:hover { text-decoration: underline; }

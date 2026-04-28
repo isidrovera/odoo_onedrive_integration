@@ -9,28 +9,26 @@
 
         <!-- TOP BAR -->
         <div class="od_topbar">
-            <div class="od_topbar_left">
-                <div class="od_logo">
-                    <i class="fa fa-cloud"/>
-                    <span>OneDrive</span>
-                </div>
+            <div class="od_logo">
+                <i class="bi bi-cloud-fill"/>
+                <span>OneDrive</span>
             </div>
             <div class="od_topbar_center">
                 <div class="od_searchbox">
-                    <i class="fa fa-search"/>
+                    <i class="bi bi-search"/>
                     <input type="text"
                            t-att-value="state.search"
                            t-on-input="onSearchInput"
                            t-on-keydown="onSearchSubmit"
                            placeholder="Buscar en OneDrive..."/>
-                    <button t-if="state.search" class="od_clearsearch" t-on-click="() => this.clearSearch()">
-                        <i class="fa fa-times"/>
+                    <button t-if="state.search" class="btn btn-sm btn-link p-0" t-on-click="() => this.clearSearch()">
+                        <i class="bi bi-x-lg"/>
                     </button>
                 </div>
             </div>
-            <div class="od_topbar_right">
-                <button class="od_iconbtn" t-on-click="() => this.refresh()" title="Actualizar">
-                    <i class="fa fa-refresh"/>
+            <div>
+                <button class="btn btn-light btn-sm" t-on-click="() => this.refresh()" title="Actualizar">
+                    <i class="bi bi-arrow-clockwise"/>
                 </button>
             </div>
         </div>
@@ -38,11 +36,11 @@
         <!-- TOOLBAR -->
         <div class="od_toolbar">
             <div class="od_toolbar_actions">
-                <button class="od_btn od_btn_primary" t-on-click="() => this.triggerUpload()">
-                    <i class="fa fa-cloud-upload"/> Subir
+                <button class="btn btn-primary btn-sm" t-on-click="() => this.triggerUpload()">
+                    <i class="bi bi-cloud-upload"/> Subir
                 </button>
-                <button class="od_btn" t-on-click="() => this.createFolder()">
-                    <i class="fa fa-folder-plus"/> Nueva carpeta
+                <button class="btn btn-light btn-sm" t-on-click="() => this.createFolder()">
+                    <i class="bi bi-folder-plus"/> Nueva carpeta
                 </button>
                 <input type="file" t-ref="fileInput" multiple="multiple"
                        style="display:none;" t-on-change="uploadFile"/>
@@ -50,35 +48,33 @@
                 <t t-if="state.selected.size > 0">
                     <div class="od_separator"/>
                     <span class="od_selcount">
-                        <i class="fa fa-check-circle"/> <t t-esc="state.selected.size"/> seleccionados
+                        <i class="bi bi-check-circle-fill"/> <t t-esc="state.selected.size"/> seleccionados
                     </span>
-                    <button class="od_btn od_btn_danger" t-on-click="() => this.deleteSelected()">
-                        <i class="fa fa-trash"/> Eliminar
+                    <button class="btn btn-danger btn-sm" t-on-click="() => this.deleteSelected()">
+                        <i class="bi bi-trash"/> Eliminar
                     </button>
                 </t>
             </div>
 
-            <div class="od_toolbar_right">
-                <div class="od_viewswitch">
-                    <button t-att-class="{'active': state.view === 'grid'}"
-                            t-on-click="() => this.setView('grid')" title="Cuadrícula">
-                        <i class="fa fa-th"/>
-                    </button>
-                    <button t-att-class="{'active': state.view === 'list'}"
-                            t-on-click="() => this.setView('list')" title="Lista">
-                        <i class="fa fa-list"/>
-                    </button>
-                </div>
+            <div class="od_viewswitch">
+                <button class="btn btn-sm" t-att-class="{'active': state.view === 'grid'}"
+                        t-on-click="() => this.setView('grid')" title="Cuadrícula">
+                    <i class="bi bi-grid-fill"/>
+                </button>
+                <button class="btn btn-sm" t-att-class="{'active': state.view === 'list'}"
+                        t-on-click="() => this.setView('list')" title="Lista">
+                    <i class="bi bi-list-ul"/>
+                </button>
             </div>
         </div>
 
         <!-- BREADCRUMB -->
         <div class="od_breadcrumb">
-            <button t-if="state.path.length > 0" class="od_iconbtn" t-on-click="() => this.goUp()" title="Subir">
-                <i class="fa fa-arrow-up"/>
+            <button t-if="state.path.length > 0" class="btn btn-sm btn-light" t-on-click="() => this.goUp()" title="Subir">
+                <i class="bi bi-arrow-up"/>
             </button>
             <span class="od_crumb" t-on-click="() => this.goRoot()">
-                <i class="fa fa-home"/> Mi unidad
+                <i class="bi bi-house-door-fill"/> Mi unidad
             </span>
             <t t-foreach="state.path" t-as="p" t-key="p.id">
                 <span class="od_crumb_sep">/</span>
@@ -87,14 +83,14 @@
                 </span>
             </t>
             <span t-if="state.searching" class="od_searchbadge">
-                <i class="fa fa-search"/> Resultados: "<t t-esc="state.search"/>"
+                <i class="bi bi-search"/> Resultados: "<t t-esc="state.search"/>"
             </span>
         </div>
 
         <!-- UPLOAD PROGRESS -->
         <div t-if="state.uploadProgress" class="od_uploadbar">
             <div class="od_uploadbar_info">
-                <i class="fa fa-cloud-upload"/>
+                <i class="bi bi-cloud-upload"/>
                 Subiendo: <strong><t t-esc="state.uploadProgress.name"/></strong>
                 <span><t t-esc="state.uploadProgress.percent"/>%</span>
             </div>
@@ -107,7 +103,7 @@
         <!-- DROPZONE -->
         <div t-if="state.dragOver" class="od_dropoverlay">
             <div class="od_dropmsg">
-                <i class="fa fa-cloud-upload"/>
+                <i class="bi bi-cloud-upload-fill"/>
                 <h2>Suelta los archivos aquí</h2>
                 <p>Se subirán a la carpeta actual</p>
             </div>
@@ -121,7 +117,7 @@
 
         <!-- EMPTY -->
         <div t-if="!state.loading and state.filteredFiles.length === 0" class="od_empty">
-            <i class="fa fa-folder-open"/>
+            <i class="bi bi-folder2-open"/>
             <h3 t-if="state.searching">No hay resultados para "<t t-esc="state.search"/>"</h3>
             <h3 t-else="">Esta carpeta está vacía</h3>
             <p>Arrastra archivos aquí o haz clic en Subir</p>
@@ -131,29 +127,20 @@
         <div t-if="!state.loading and state.view === 'grid' and state.filteredFiles.length > 0"
              class="od_grid">
             <t t-foreach="state.filteredFiles" t-as="file" t-key="file.id">
+                <t t-set="ic" t-value="getFileIcon(file)"/>
                 <div class="od_card"
                      t-att-class="{'selected': isSelected(file)}"
                      t-on-dblclick="() => this.openFolder(file)"
                      t-on-contextmenu="(ev) => this.openCtxMenu(file, ev)">
 
                     <div class="od_card_check" t-on-click.stop="(ev) => this.toggleSelect(file, ev)">
-                        <i t-att-class="isSelected(file) ? 'fa fa-check-square' : 'fa fa-square-o'"/>
+                        <i t-att-class="isSelected(file) ? 'bi bi-check-square-fill' : 'bi bi-square'"/>
                     </div>
 
                     <div class="od_card_thumb" t-on-click="() => this.openFolder(file)">
-                        <t t-set="ic" t-value="getFileIcon(file)"/>
-                        <t t-if="!file.folder and file.file and file.file.mimeType and file.file.mimeType.startsWith('image/')">
-                            <img t-att-src="`/onedrive/thumbnail/${file.id}?size=medium`"
-                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"/>
-                            <div class="od_card_icon" t-att-style="`color:${ic.color};display:none;`">
-                                <i t-att-class="`fa ${ic.icon}`"/>
-                            </div>
-                        </t>
-                        <t t-else="">
-                            <div class="od_card_icon" t-att-style="`color:${ic.color};`">
-                                <i t-att-class="`fa ${ic.icon}`"/>
-                            </div>
-                        </t>
+                        <div class="od_card_icon" t-att-style="`color:${ic.color};`">
+                            <i t-att-class="`bi ${ic.icon}`"/>
+                        </div>
                     </div>
 
                     <div class="od_card_body">
@@ -161,22 +148,26 @@
                             <t t-esc="file.name"/>
                         </div>
                         <div class="od_card_meta">
-                            <span t-if="!file.folder"><t t-esc="formatBytes(file.size)"/></span>
-                            <span t-if="file.folder"><t t-esc="file.folder.childCount or 0"/> elementos</span>
-                            <span> · </span>
-                            <span><t t-esc="formatDate(file.lastModifiedDateTime)"/></span>
+                            <t t-if="file.folder">
+                                <t t-esc="(file.folder and file.folder.childCount) or 0"/> elementos
+                            </t>
+                            <t t-else="">
+                                <t t-esc="formatBytes(file.size)"/>
+                            </t>
+                            ·
+                            <t t-esc="formatDate(file.lastModifiedDateTime)"/>
                         </div>
                     </div>
 
                     <div class="od_card_actions">
-                        <button class="od_iconbtn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
-                            <i class="fa fa-eye"/>
+                        <button class="btn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
+                            <i class="bi bi-eye"/>
                         </button>
-                        <button class="od_iconbtn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
-                            <i class="fa fa-download"/>
+                        <button class="btn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
+                            <i class="bi bi-download"/>
                         </button>
-                        <button class="od_iconbtn" t-on-click.stop="(ev) => this.openCtxMenu(file, ev)" title="Más">
-                            <i class="fa fa-ellipsis-v"/>
+                        <button class="btn" t-on-click.stop="(ev) => this.openCtxMenu(file, ev)" title="Más">
+                            <i class="bi bi-three-dots-vertical"/>
                         </button>
                     </div>
                 </div>
@@ -188,37 +179,37 @@
              class="od_list">
             <div class="od_list_header">
                 <div class="od_col_check">
-                    <i t-att-class="state.selected.size === state.filteredFiles.length ? 'fa fa-check-square' : 'fa fa-square-o'"
+                    <i t-att-class="state.selected.size === state.filteredFiles.length ? 'bi bi-check-square-fill' : 'bi bi-square'"
                        t-on-click="() => this.selectAll()"/>
                 </div>
                 <div class="od_col_name sortable" t-on-click="() => this.setSort('name')">
                     Nombre
                     <i t-if="state.sortBy === 'name'"
-                       t-att-class="`fa fa-caret-${state.sortDir === 'asc' ? 'up' : 'down'}`"/>
+                       t-att-class="`bi bi-caret-${state.sortDir === 'asc' ? 'up' : 'down'}-fill`"/>
                 </div>
                 <div class="od_col_modified sortable" t-on-click="() => this.setSort('modified')">
                     Modificado
                     <i t-if="state.sortBy === 'modified'"
-                       t-att-class="`fa fa-caret-${state.sortDir === 'asc' ? 'up' : 'down'}`"/>
+                       t-att-class="`bi bi-caret-${state.sortDir === 'asc' ? 'up' : 'down'}-fill`"/>
                 </div>
                 <div class="od_col_size sortable" t-on-click="() => this.setSort('size')">
                     Tamaño
                     <i t-if="state.sortBy === 'size'"
-                       t-att-class="`fa fa-caret-${state.sortDir === 'asc' ? 'up' : 'down'}`"/>
+                       t-att-class="`bi bi-caret-${state.sortDir === 'asc' ? 'up' : 'down'}-fill`"/>
                 </div>
                 <div class="od_col_actions"/>
             </div>
             <t t-foreach="state.filteredFiles" t-as="file" t-key="file.id">
+                <t t-set="ic" t-value="getFileIcon(file)"/>
                 <div class="od_list_row"
                      t-att-class="{'selected': isSelected(file)}"
                      t-on-dblclick="() => this.openFolder(file)"
                      t-on-contextmenu="(ev) => this.openCtxMenu(file, ev)">
                     <div class="od_col_check" t-on-click.stop="(ev) => this.toggleSelect(file, ev)">
-                        <i t-att-class="isSelected(file) ? 'fa fa-check-square' : 'fa fa-square-o'"/>
+                        <i t-att-class="isSelected(file) ? 'bi bi-check-square-fill' : 'bi bi-square'"/>
                     </div>
                     <div class="od_col_name" t-on-click="() => this.openFolder(file)">
-                        <t t-set="ic" t-value="getFileIcon(file)"/>
-                        <i t-att-class="`fa ${ic.icon} od_listicon`" t-att-style="`color:${ic.color};`"/>
+                        <i t-att-class="`bi ${ic.icon} od_listicon`" t-att-style="`color:${ic.color};`"/>
                         <span class="od_listname"><t t-esc="file.name"/></span>
                     </div>
                     <div class="od_col_modified"><t t-esc="formatDate(file.lastModifiedDateTime)"/></div>
@@ -227,17 +218,17 @@
                         <t t-else=""><t t-esc="formatBytes(file.size)"/></t>
                     </div>
                     <div class="od_col_actions">
-                        <button class="od_iconbtn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
-                            <i class="fa fa-eye"/>
+                        <button class="btn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
+                            <i class="bi bi-eye"/>
                         </button>
-                        <button class="od_iconbtn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
-                            <i class="fa fa-download"/>
+                        <button class="btn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
+                            <i class="bi bi-download"/>
                         </button>
-                        <button class="od_iconbtn" t-on-click.stop="() => this.shareItem(file)" title="Compartir">
-                            <i class="fa fa-share-alt"/>
+                        <button class="btn" t-on-click.stop="() => this.shareItem(file)" title="Compartir">
+                            <i class="bi bi-share"/>
                         </button>
-                        <button class="od_iconbtn" t-on-click.stop="(ev) => this.openCtxMenu(file, ev)" title="Más">
-                            <i class="fa fa-ellipsis-v"/>
+                        <button class="btn" t-on-click.stop="(ev) => this.openCtxMenu(file, ev)" title="Más">
+                            <i class="bi bi-three-dots-vertical"/>
                         </button>
                     </div>
                 </div>
@@ -247,25 +238,25 @@
         <!-- CONTEXT MENU -->
         <div t-if="state.ctxMenu.open" class="od_ctxmenu"
              t-att-style="`top:${state.ctxMenu.y}px; left:${state.ctxMenu.x}px;`">
-            <button t-on-click="() => this.previewFile(state.ctxMenu.file)">
-                <i class="fa fa-eye"/> Vista previa
+            <button class="btn" t-on-click="() => this.previewFile(state.ctxMenu.file)">
+                <i class="bi bi-eye"/> Vista previa
             </button>
-            <button t-on-click="() => this.downloadItem(state.ctxMenu.file)">
-                <i class="fa fa-download"/> Descargar
+            <button class="btn" t-on-click="() => this.downloadItem(state.ctxMenu.file)">
+                <i class="bi bi-download"/> Descargar
             </button>
-            <button t-on-click="() => this.shareItem(state.ctxMenu.file)">
-                <i class="fa fa-share-alt"/> Compartir
-            </button>
-            <div class="od_ctxsep"/>
-            <button t-on-click="() => this.renameItem(state.ctxMenu.file)">
-                <i class="fa fa-pencil"/> Renombrar
-            </button>
-            <button t-on-click="() => this.showProperties(state.ctxMenu.file)">
-                <i class="fa fa-info-circle"/> Propiedades
+            <button class="btn" t-on-click="() => this.shareItem(state.ctxMenu.file)">
+                <i class="bi bi-share"/> Compartir
             </button>
             <div class="od_ctxsep"/>
-            <button class="danger" t-on-click="() => this.deleteItem(state.ctxMenu.file)">
-                <i class="fa fa-trash"/> Eliminar
+            <button class="btn" t-on-click="() => this.renameItem(state.ctxMenu.file)">
+                <i class="bi bi-pencil"/> Renombrar
+            </button>
+            <button class="btn" t-on-click="() => this.showProperties(state.ctxMenu.file)">
+                <i class="bi bi-info-circle"/> Propiedades
+            </button>
+            <div class="od_ctxsep"/>
+            <button class="btn danger" t-on-click="() => this.deleteItem(state.ctxMenu.file)">
+                <i class="bi bi-trash"/> Eliminar
             </button>
         </div>
     </div>
@@ -277,7 +268,7 @@
     <Dialog title="props.title or 'Confirmar'" size="'md'" contentClass="'od_dialog'">
         <div class="od_dialog_body">
             <div class="od_dialog_icon" t-att-class="{'danger': props.danger}">
-                <i t-att-class="`fa ${props.icon || 'fa-question-circle'}`"/>
+                <i t-att-class="`bi ${props.icon || 'bi-question-circle'}`"/>
             </div>
             <div class="od_dialog_text">
                 <h4><t t-esc="props.message"/></h4>
@@ -285,11 +276,10 @@
             </div>
         </div>
         <t t-set-slot="footer">
-            <button class="od_btn" t-on-click="() => this.cancel()">
+            <button class="btn btn-light" t-on-click="() => this.cancel()">
                 <t t-esc="props.cancelLabel or 'Cancelar'"/>
             </button>
-            <button class="od_btn"
-                    t-att-class="props.danger ? 'od_btn_danger' : 'od_btn_primary'"
+            <button t-att-class="props.danger ? 'btn btn-danger' : 'btn btn-primary'"
                     t-on-click="() => this.confirm()">
                 <t t-esc="props.confirmLabel or 'Confirmar'"/>
             </button>
@@ -303,11 +293,11 @@
     <Dialog title="props.title" size="'md'" contentClass="'od_dialog'">
         <div class="od_dialog_body">
             <div class="od_dialog_icon">
-                <i t-att-class="`fa ${props.icon || 'fa-edit'}`"/>
+                <i t-att-class="`bi ${props.icon || 'bi-pencil'}`"/>
             </div>
             <div class="od_dialog_text" style="flex:1;">
                 <label t-if="props.label" class="od_label"><t t-esc="props.label"/></label>
-                <input type="text" class="od_input"
+                <input type="text" class="form-control"
                        t-ref="input"
                        t-att-value="state.value"
                        t-att-placeholder="props.placeholder || ''"
@@ -316,8 +306,8 @@
             </div>
         </div>
         <t t-set-slot="footer">
-            <button class="od_btn" t-on-click="() => this.cancel()">Cancelar</button>
-            <button class="od_btn od_btn_primary" t-on-click="() => this.confirm()">
+            <button class="btn btn-light" t-on-click="() => this.cancel()">Cancelar</button>
+            <button class="btn btn-primary" t-on-click="() => this.confirm()">
                 <t t-esc="props.confirmLabel or 'Aceptar'"/>
             </button>
         </t>
@@ -334,7 +324,7 @@
                 <p>Cargando vista previa...</p>
             </div>
             <div t-elif="state.error" class="od_preview_error">
-                <i t-att-class="`fa ${icon.icon}`" t-att-style="`color:${icon.color};`"/>
+                <i t-att-class="`bi ${icon.icon}`" t-att-style="`color:${icon.color};`"/>
                 <h3><t t-esc="state.error"/></h3>
                 <p>Descarga el archivo para verlo</p>
             </div>
@@ -344,12 +334,11 @@
 
             <div class="od_preview_info">
                 <div class="od_info_block">
-                    <i t-att-class="`fa ${icon.icon}`" t-att-style="`color:${icon.color};`"/>
+                    <i t-att-class="`bi ${icon.icon}`" t-att-style="`color:${icon.color};`"/>
                     <div>
                         <div class="od_info_name"><t t-esc="props.file.name"/></div>
                         <div class="od_info_meta">
-                            <span t-if="props.file.size"><t t-esc="formatBytes(props.file.size)"/></span>
-                            <span> · </span>
+                            <span t-if="props.file.size"><t t-esc="formatBytes(props.file.size)"/> · </span>
                             <span><t t-esc="formatDate(props.file.lastModifiedDateTime)"/></span>
                         </div>
                     </div>
@@ -357,14 +346,14 @@
             </div>
         </div>
         <t t-set-slot="footer">
-            <button class="od_btn od_btn_danger" t-on-click="() => this.remove()">
-                <i class="fa fa-trash"/> Eliminar
+            <button class="btn btn-danger" t-on-click="() => this.remove()">
+                <i class="bi bi-trash"/> Eliminar
             </button>
-            <button class="od_btn" t-on-click="() => this.share()">
-                <i class="fa fa-share-alt"/> Compartir
+            <button class="btn btn-light" t-on-click="() => this.share()">
+                <i class="bi bi-share"/> Compartir
             </button>
-            <button class="od_btn od_btn_primary" t-on-click="() => this.download()">
-                <i class="fa fa-download"/> Descargar
+            <button class="btn btn-primary" t-on-click="() => this.download()">
+                <i class="bi bi-download"/> Descargar
             </button>
         </t>
     </Dialog>
@@ -375,55 +364,53 @@
 <t t-name="odoo_onedrive_integration.ShareDialog">
     <Dialog title="'Compartir archivo'" size="'md'" contentClass="'od_dialog'">
         <div class="od_share_body">
-            <h4><i class="fa fa-share-alt"/> <t t-esc="props.file.name"/></h4>
+            <h4><i class="bi bi-share-fill"/> <t t-esc="props.file.name"/></h4>
 
-            <div class="od_share_options">
-                <label class="od_label">Permisos</label>
-                <div class="od_radio_group">
-                    <label class="od_radio">
-                        <input type="radio" name="stype" value="view"
-                               t-att-checked="state.shareType === 'view'"
-                               t-on-change="() => state.shareType = 'view'"/>
-                        <span><i class="fa fa-eye"/> Solo lectura</span>
-                    </label>
-                    <label class="od_radio">
-                        <input type="radio" name="stype" value="edit"
-                               t-att-checked="state.shareType === 'edit'"
-                               t-on-change="() => state.shareType = 'edit'"/>
-                        <span><i class="fa fa-pencil"/> Edición</span>
-                    </label>
-                </div>
+            <label class="od_label">Permisos</label>
+            <div class="od_radio_group">
+                <label class="od_radio">
+                    <input type="radio" name="stype" value="view"
+                           t-att-checked="state.shareType === 'view'"
+                           t-on-change="() => state.shareType = 'view'"/>
+                    <span><i class="bi bi-eye"/> Solo lectura</span>
+                </label>
+                <label class="od_radio">
+                    <input type="radio" name="stype" value="edit"
+                           t-att-checked="state.shareType === 'edit'"
+                           t-on-change="() => state.shareType = 'edit'"/>
+                    <span><i class="bi bi-pencil"/> Edición</span>
+                </label>
+            </div>
 
-                <label class="od_label">Acceso</label>
-                <div class="od_radio_group">
-                    <label class="od_radio">
-                        <input type="radio" name="scope" value="anonymous"
-                               t-att-checked="state.scope === 'anonymous'"
-                               t-on-change="() => state.scope = 'anonymous'"/>
-                        <span><i class="fa fa-globe"/> Cualquiera con el enlace</span>
-                    </label>
-                    <label class="od_radio">
-                        <input type="radio" name="scope" value="organization"
-                               t-att-checked="state.scope === 'organization'"
-                               t-on-change="() => state.scope = 'organization'"/>
-                        <span><i class="fa fa-building"/> Solo mi organización</span>
-                    </label>
-                </div>
+            <label class="od_label">Acceso</label>
+            <div class="od_radio_group">
+                <label class="od_radio">
+                    <input type="radio" name="scope" value="anonymous"
+                           t-att-checked="state.scope === 'anonymous'"
+                           t-on-change="() => state.scope = 'anonymous'"/>
+                    <span><i class="bi bi-globe"/> Cualquiera con el enlace</span>
+                </label>
+                <label class="od_radio">
+                    <input type="radio" name="scope" value="organization"
+                           t-att-checked="state.scope === 'organization'"
+                           t-on-change="() => state.scope = 'organization'"/>
+                    <span><i class="bi bi-building"/> Solo mi organización</span>
+                </label>
             </div>
 
             <div t-if="state.link" class="od_link_box">
                 <input type="text" readonly="readonly" t-att-value="state.link"/>
-                <button class="od_btn od_btn_primary" t-on-click="() => this.copyLink()">
-                    <i class="fa fa-copy"/> Copiar
+                <button class="btn btn-primary btn-sm" t-on-click="() => this.copyLink()">
+                    <i class="bi bi-clipboard"/> Copiar
                 </button>
             </div>
         </div>
         <t t-set-slot="footer">
-            <button class="od_btn" t-on-click="() => this.closeDialog()">Cerrar</button>
-            <button class="od_btn od_btn_primary"
+            <button class="btn btn-light" t-on-click="() => this.closeDialog()">Cerrar</button>
+            <button class="btn btn-primary"
                     t-att-disabled="state.loading"
                     t-on-click="() => this.generate()">
-                <i class="fa fa-link"/>
+                <i class="bi bi-link-45deg"/>
                 <t t-if="state.loading"> Generando...</t>
                 <t t-else=""> Generar enlace</t>
             </button>
@@ -437,14 +424,14 @@
     <Dialog title="'Propiedades'" size="'md'" contentClass="'od_dialog'">
         <div class="od_props_body">
             <div class="od_props_header">
-                <i t-att-class="`fa ${icon.icon}`" t-att-style="`color:${icon.color};`"/>
+                <i t-att-class="`bi ${icon.icon}`" t-att-style="`color:${icon.color};`"/>
                 <h4><t t-esc="props.file.name"/></h4>
             </div>
             <table class="od_props_table">
                 <tr>
                     <th>Tipo</th>
                     <td t-if="props.file.folder">Carpeta</td>
-                    <td t-else=""><t t-esc="props.file.file?.mimeType || 'Archivo'"/></td>
+                    <td t-else=""><t t-esc="(props.file.file and props.file.file.mimeType) or 'Archivo'"/></td>
                 </tr>
                 <tr t-if="!props.file.folder">
                     <th>Tamaño</th>
@@ -452,7 +439,7 @@
                 </tr>
                 <tr t-if="props.file.folder">
                     <th>Elementos</th>
-                    <td><t t-esc="props.file.folder.childCount or 0"/></td>
+                    <td><t t-esc="(props.file.folder and props.file.folder.childCount) or 0"/></td>
                 </tr>
                 <tr>
                     <th>Creado</th>
@@ -469,7 +456,7 @@
             </table>
         </div>
         <t t-set-slot="footer">
-            <button class="od_btn od_btn_primary" t-on-click="() => this.closeDialog()">Cerrar</button>
+            <button class="btn btn-primary" t-on-click="() => this.closeDialog()">Cerrar</button>
         </t>
     </Dialog>
 </t>
