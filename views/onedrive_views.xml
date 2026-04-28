@@ -13,8 +13,9 @@
     <!-- MENÚ PRINCIPAL -->
     <!-- ========================================= -->
     <menuitem id="menu_onedrive_root"
-              name="OneDrive"
-              sequence="10"/>
+          name="OneDrive"
+          web_icon="odoo_onedrive_integration,static/description/icon.png"
+          sequence="10"/>
 
 
     <!-- ========================================= -->
