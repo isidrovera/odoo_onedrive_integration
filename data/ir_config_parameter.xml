@@ -1,0 +1,15 @@
+<odoo>
+
+    <!-- URL base Microsoft Graph -->
+    <record id="param_onedrive_graph_url" model="ir.config_parameter">
+        <field name="key">onedrive.graph.base_url</field>
+        <field name="value">https://graph.microsoft.com/v1.0</field>
+    </record>
+
+    <!-- Scope OAuth -->
+    <record id="param_onedrive_scope" model="ir.config_parameter">
+        <field name="key">onedrive.oauth.scope</field>
+        <field name="value">offline_access Files.ReadWrite.All User.Read</field>
+    </record>
+
+</odoo>

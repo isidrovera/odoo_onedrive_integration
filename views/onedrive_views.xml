@@ -1,0 +1,112 @@
+<odoo>
+
+    <!-- ========================================= -->
+    <!-- ACCIÓN CLIENTE -->
+    <!-- ========================================= -->
+    <record id="action_onedrive_app" model="ir.actions.client">
+        <field name="name">OneDrive</field>
+        <field name="tag">onedrive_app</field>
+    </record>
+
+
+    <!-- ========================================= -->
+    <!-- MENÚ PRINCIPAL -->
+    <!-- ========================================= -->
+    <menuitem id="menu_onedrive_root"
+              name="OneDrive"
+              sequence="10"/>
+
+
+    <!-- ========================================= -->
+    <!-- MENÚ APP -->
+    <!-- ========================================= -->
+    <menuitem id="menu_onedrive_app"
+              name="Mis Archivos"
+              parent="menu_onedrive_root"
+              action="action_onedrive_app"
+              sequence="1"/>
+
+
+    <!-- ========================================= -->
+    <!-- MENÚ CONFIG -->
+    <!-- ========================================= -->
+    <menuitem id="menu_onedrive_config"
+              name="Configuración"
+              parent="menu_onedrive_root"
+              sequence="2"/>
+
+
+    <!-- ========================================= -->
+    <!-- ACCIÓN CUENTAS -->
+    <!-- ========================================= -->
+    <record id="action_onedrive_account" model="ir.actions.act_window">
+        <field name="name">Cuentas OneDrive</field>
+        <field name="res_model">onedrive.account</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+
+    <!-- ========================================= -->
+    <!-- MENÚ CUENTAS -->
+    <!-- ========================================= -->
+    <menuitem id="menu_onedrive_accounts"
+              name="Cuentas"
+              parent="menu_onedrive_config"
+              action="action_onedrive_account"
+              sequence="1"/>
+
+
+    <!-- ========================================= -->
+    <!-- VISTA LIST (ANTES TREE) -->
+    <!-- ========================================= -->
+    <record id="view_onedrive_account_list" model="ir.ui.view">
+        <field name="name">onedrive.account.list</field>
+        <field name="model">onedrive.account</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="tenant_id"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+
+    <!-- ========================================= -->
+    <!-- VISTA FORM -->
+    <!-- ========================================= -->
+    <record id="view_onedrive_account_form" model="ir.ui.view">
+        <field name="name">onedrive.account.form</field>
+        <field name="model">onedrive.account</field>
+        <field name="arch" type="xml">
+            <form string="Cuenta OneDrive">
+                <sheet>
+
+                    <group>
+                        <field name="name"/>
+                        <field name="client_id"/>
+                        <field name="client_secret"/>
+                        <field name="tenant_id"/>
+                        <field name="redirect_uri" readonly="1"/>
+                    </group>
+
+                    <group string="Tokens">
+                        <field name="access_token" readonly="1"/>
+                        <field name="refresh_token" readonly="1"/>
+                        <field name="token_expiry" readonly="1"/>
+                    </group>
+
+                    <footer>
+                        <button string="Conectar con Microsoft"
+                                type="object"
+                                name="action_connect_onedrive"
+                                class="btn-primary"/>
+                    </footer>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>

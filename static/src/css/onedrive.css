@@ -1,0 +1,27 @@
+.o_onedrive_grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.o_onedrive_item {
+    width: 120px;
+    text-align: center;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.o_onedrive_icon {
+    font-size: 40px;
+    cursor: pointer;
+}
+
+.o_onedrive_breadcrumb {
+    margin: 10px 0;
+}
+
+.breadcrumb-item {
+    cursor: pointer;
+    color: #007bff;
+}
