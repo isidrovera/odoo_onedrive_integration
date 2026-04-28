@@ -1,7 +1,9 @@
 # controllers/onedrive_controller.py
 import logging
 import json
-import base64
+import requests as http_requests
+from werkzeug.urls import url_quote
+
 from odoo import http
 from odoo.http import request, Response
 from odoo.exceptions import UserError
@@ -133,7 +135,7 @@ class OneDriveController(http.Controller):
         return service.create_share_link(item_id, share_type, scope)
 
     # ---------------------------------------
-    # PREVIEW (thumbnail)
+    # THUMBNAIL (streaming en vez de redirect)
     # ---------------------------------------
     @http.route('/onedrive/thumbnail/<string:item_id>', type='http', auth='user')
     def get_thumbnail(self, item_id, size='medium', account_id=None):
@@ -141,11 +143,21 @@ class OneDriveController(http.Controller):
         service = GraphService(account)
         try:
             url = service.get_thumbnail_url(item_id, size)
-            if url:
-                return request.redirect(url)
+            if not url:
+                return Response(status=404)
+            r = http_requests.get(url, stream=True, timeout=30)
+            if r.status_code >= 400:
+                return Response(status=r.status_code)
+            return request.make_response(
+                r.content,
+                headers=[
+                    ('Content-Type', r.headers.get('Content-Type', 'image/jpeg')),
+                    ('Cache-Control', 'public, max-age=3600'),
+                ],
+            )
         except Exception as e:
             _logger.warning("Thumbnail error: %s", e)
-        return Response(status=404)
+            return Response(status=404)
 
     # ---------------------------------------
     # PREVIEW (embed)
@@ -157,30 +169,86 @@ class OneDriveController(http.Controller):
         return service.get_preview_url(item_id)
 
     # ---------------------------------------
-    # DOWNLOAD FILE
+    # DOWNLOAD FILE (streaming directo, sin redirect)
     # ---------------------------------------
     @http.route('/onedrive/download/<string:item_id>', type='http', auth='user')
     def download_file(self, item_id, account_id=None):
         account = self._get_account(account_id)
         service = GraphService(account)
         try:
-            download_url = service.get_download_url(item_id)
+            item = service.get_item(item_id)
+            if "folder" in item:
+                return request.make_response("Use download_folder para carpetas", status=400)
+
+            download_url = item.get("@microsoft.graph.downloadUrl")
+            filename = item.get("name", "download")
+            if not download_url:
+                return request.make_response("Archivo no descargable", status=404)
+
+            r = http_requests.get(download_url, stream=True, timeout=120)
+            if r.status_code >= 400:
+                return request.make_response(f"Error Microsoft: {r.status_code}", status=r.status_code)
+
+            def generate():
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        yield chunk
+
+            safe_filename = url_quote(filename)
+            headers = [
+                ('Content-Type', r.headers.get('Content-Type', 'application/octet-stream')),
+                ('Content-Disposition', f"attachment; filename*=UTF-8''{safe_filename}"),
+                ('Cache-Control', 'no-cache'),
+            ]
+            cl = r.headers.get('Content-Length')
+            if cl:
+                headers.append(('Content-Length', cl))
+
+            return request.make_response(generate(), headers=headers)
+
         except Exception as e:
-            return f"Error: {str(e)}"
-        return request.redirect(download_url)
+            _logger.exception("Download error")
+            return request.make_response(f"Error: {str(e)}", status=500)
 
     # ---------------------------------------
-    # DOWNLOAD FOLDER (as zip via Graph)
+    # DOWNLOAD FOLDER (streaming zip desde Graph)
     # ---------------------------------------
     @http.route('/onedrive/download_folder/<string:item_id>', type='http', auth='user')
     def download_folder(self, item_id, account_id=None):
         account = self._get_account(account_id)
         service = GraphService(account)
         try:
-            url = service.get_folder_download_url(item_id)
-            return request.redirect(url)
+            item = service.get_item(item_id)
+            folder_name = item.get("name", "folder")
+            token = account.get_valid_token()
+            url = f"{service.base_url}/me/drive/items/{item_id}/content"
+
+            r = http_requests.get(
+                url,
+                headers={"Authorization": f"Bearer {token}"},
+                stream=True,
+                timeout=300,
+                allow_redirects=True,
+            )
+            if r.status_code >= 400:
+                return request.make_response(f"Error: {r.status_code}", status=r.status_code)
+
+            def generate():
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        yield chunk
+
+            safe_filename = url_quote(f"{folder_name}.zip")
+            headers = [
+                ('Content-Type', 'application/zip'),
+                ('Content-Disposition', f"attachment; filename*=UTF-8''{safe_filename}"),
+                ('Cache-Control', 'no-cache'),
+            ]
+            return request.make_response(generate(), headers=headers)
+
         except Exception as e:
-            return f"Error: {str(e)}"
+            _logger.exception("Download folder error")
+            return request.make_response(f"Error: {str(e)}", status=500)
 
     # ---------------------------------------
     # UPLOAD
