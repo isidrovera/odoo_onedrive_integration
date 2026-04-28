@@ -3,6 +3,7 @@
 import { Component, useState, onWillStart } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { rpc } from "@web/core/network/rpc";
+import { useService } from "@web/core/utils/hooks";
 
 export class OneDriveApp extends Component {
 
@@ -13,6 +14,9 @@ export class OneDriveApp extends Component {
             currentFolder: null,
             path: [],
         });
+
+        // 🔥 servicio de dialog
+        this.dialog = useService("dialog");
 
         onWillStart(async () => {
             await this.loadFiles();
@@ -25,20 +29,15 @@ export class OneDriveApp extends Component {
     async loadFiles(folderId = null) {
         this.state.loading = true;
 
-        try {
-            const result = await rpc("/onedrive/list", {
-                parent_id: folderId
-            });
+        const result = await rpc("/onedrive/list", {
+            parent_id: folderId
+        });
 
-            this.state.files = result.value || [];
-            this.state.currentFolder = folderId;
+        this.state.files = result.value || [];
+        this.state.currentFolder = folderId;
 
-            if (folderId === null) {
-                this.state.path = [];
-            }
-
-        } catch (error) {
-            console.error("Error loading files", error);
+        if (folderId === null) {
+            this.state.path = [];
         }
 
         this.state.loading = false;
@@ -59,33 +58,21 @@ export class OneDriveApp extends Component {
     }
 
     // ---------------------------------------
-    // GO ROOT
-    // ---------------------------------------
-    async goRoot() {
-        this.state.path = [];
-        await this.loadFiles(null);
-    }
-
-    // ---------------------------------------
-    // GO TO BREADCRUMB
-    // ---------------------------------------
-    async goTo(index) {
-        const target = this.state.path[index];
-        this.state.path = this.state.path.slice(0, index + 1);
-        await this.loadFiles(target.id);
-    }
-
-    // ---------------------------------------
-    // DELETE
+    // DELETE (PROFESIONAL)
     // ---------------------------------------
     async deleteItem(file) {
-        if (!confirm("¿Eliminar archivo?")) return;
 
-        await rpc("/onedrive/delete", {
-            item_id: file.id
+        this.dialog.add(this.env.services.dialog.confirm, {
+            title: "Eliminar archivo",
+            body: `¿Seguro que deseas eliminar "${file.name}"?`,
+            confirm: async () => {
+                await rpc("/onedrive/delete", {
+                    item_id: file.id
+                });
+
+                await this.loadFiles(this.state.currentFolder);
+            },
         });
-
-        await this.loadFiles(this.state.currentFolder);
     }
 
     // ---------------------------------------
@@ -129,7 +116,6 @@ export class OneDriveApp extends Component {
     }
 }
 
-// 🔥 CRÍTICO: asignar template correcto
 OneDriveApp.template = "odoo_onedrive_integration.onedrive_app";
 
 registry.category("actions").add("onedrive_app", OneDriveApp);
