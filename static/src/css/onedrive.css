@@ -1,5 +1,3 @@
-// static/src/scss/onedrive_app.scss
-
 .o_onedrive_app {
     --od-bg: #f8fafc;
     --od-surface: #ffffff;
@@ -23,7 +21,6 @@
     flex-direction: column;
     font-size: 14px;
 
-    // ---------- TOPBAR ----------
     .od_topbar {
         display: flex;
         align-items: center;
@@ -73,7 +70,7 @@
         }
     }
 
-    // ---------- TOOLBAR ----------
+   
     .od_toolbar {
         display: flex; align-items: center; justify-content: space-between;
         padding: 12px 20px;
@@ -86,7 +83,7 @@
         .od_selcount { font-size: 13px; color: var(--od-primary); font-weight: 500; padding: 0 8px; }
     }
 
-    // ---------- BUTTONS ----------
+  
     .od_btn {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 8px 14px;
@@ -117,7 +114,7 @@
         &:hover { background: var(--od-bg); }
     }
 
-    // ---------- VIEW SWITCH ----------
+   
     .od_viewswitch {
         display: flex; gap: 2px; background: var(--od-bg); border-radius: 8px; padding: 2px;
         button {
@@ -127,7 +124,7 @@
         }
     }
 
-    // ---------- BREADCRUMB ----------
+  
     .od_breadcrumb {
         display: flex; align-items: center; gap: 6px;
         padding: 10px 20px;
@@ -148,7 +145,7 @@
         }
     }
 
-    // ---------- UPLOAD BAR ----------
+  
     .od_uploadbar {
         padding: 10px 20px; background: rgba(0,120,212,.05); border-bottom: 1px solid var(--od-border);
         .od_uploadbar_info { font-size: 13px; display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
@@ -156,7 +153,7 @@
         .od_progress_bar { height: 100%; background: var(--od-primary); transition: width .2s; }
     }
 
-    // ---------- DROP OVERLAY ----------
+  
     .od_dropoverlay {
         position: absolute; inset: 0; z-index: 100;
         background: rgba(0,120,212,.1);
@@ -171,7 +168,7 @@
         }
     }
 
-    // ---------- LOADING / EMPTY ----------
+    
     .od_loading, .od_empty {
         flex: 1; display: flex; flex-direction: column; align-items: center;
         justify-content: center; gap: 16px; padding: 40px; color: var(--od-muted);
@@ -185,7 +182,7 @@
     }
     @keyframes od_spin { to { transform: rotate(360deg); } }
 
-    // ---------- GRID VIEW ----------
+   
     .od_grid {
         flex: 1; overflow: auto; padding: 20px;
         display: grid;
@@ -250,7 +247,7 @@
         }
     }
 
-    // ---------- LIST VIEW ----------
+    
     .od_list {
         flex: 1; overflow: auto;
         background: var(--od-surface);
@@ -287,7 +284,7 @@
         .od_col_actions { display: flex; gap: 2px; justify-content: flex-end; }
     }
 
-    // ---------- CONTEXT MENU ----------
+    
     .od_ctxmenu {
         position: fixed; z-index: 1000;
         min-width: 220px;
@@ -312,7 +309,7 @@
     @keyframes od_fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 }
 
-// ---------- DIALOGS ----------
+
 .od_dialog {
     .od_dialog_body {
         display: flex; gap: 16px; align-items: flex-start; padding: 8px 0;
@@ -349,7 +346,6 @@
         &:hover { background: #b91c1c; border-color: #b91c1c; } }
 }
 
-// ---------- PREVIEW DIALOG ----------
 .od_preview_dialog {
     .modal-body { padding: 0 !important; }
     .od_preview_body { display: flex; flex-direction: column; height: 70vh; }
@@ -376,7 +372,6 @@
     }
 }
 
-// ---------- SHARE DIALOG ----------
 .od_share_body {
     h4 { margin: 0 0 16px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
     .od_share_options .od_label { display: block; font-size: 12px; font-weight: 600;
@@ -401,7 +396,7 @@
     }
 }
 
-// ---------- PROPERTIES DIALOG ----------
+
 .od_props_body {
     .od_props_header {
         display: flex; align-items: center; gap: 12px;
