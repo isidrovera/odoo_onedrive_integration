@@ -82,6 +82,11 @@
         <field name="arch" type="xml">
             <form string="Cuenta OneDrive">
                 <sheet>
+                    <!-- BOTÓN CONECTAR -->
+                    <button string="Conectar con Microsoft"
+                            type="object"
+                            name="action_connect_onedrive"
+                            class="btn-primary"/>
 
                     <group>
                         <field name="name"/>
