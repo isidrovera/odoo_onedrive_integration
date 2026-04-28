@@ -47,75 +47,106 @@ export class OneDriveApp extends Component {
         this.formatBytes = formatBytes;
         this.formatDate = formatDate;
 
+        // bound handlers para poder removerlos correctamente
+        this._onDocClick = this.closeCtxMenu.bind(this);
+        this._onDocKey = this.onKeyDown.bind(this);
+
         onWillStart(async () => {
             await this.loadAccounts();
             await this.loadFiles();
         });
 
         onMounted(() => {
-            document.addEventListener("click", this.closeCtxMenu.bind(this));
-            document.addEventListener("keydown", this.onKeyDown.bind(this));
+            document.addEventListener("click", this._onDocClick);
+            document.addEventListener("keydown", this._onDocKey);
         });
     }
 
-    // -------- ACCOUNTS --------
+    // =========================================================
+    // ACCOUNTS
+    // =========================================================
     async loadAccounts() {
         try {
             const res = await rpc("/onedrive/accounts", {});
             this.state.accounts = res || [];
             if (res && res.length) this.state.accountId = res[0].id;
         } catch (e) {
+            console.error("loadAccounts error:", e);
             this.state.accounts = [];
         }
     }
 
-    // -------- LOAD --------
+    // =========================================================
+    // LOAD
+    // =========================================================
     async loadFiles(folderId = null) {
         this.state.loading = true;
-        this.state.selected.clear();
+        this.state.selected = new Set();
         try {
             const result = await rpc("/onedrive/list", {
                 parent_id: folderId,
                 account_id: this.state.accountId,
             });
-            this.state.files = result.value || [];
+            // Sanitizar respuesta: quedarnos solo con items válidos
+            const raw = (result && result.value) || [];
+            this.state.files = raw.filter(f => f && f.id && f.name);
             this.state.currentFolder = folderId;
             if (folderId === null) this.state.path = [];
             this.applyFilterAndSort();
         } catch (e) {
+            console.error("loadFiles error:", e);
             this.notify(_t("Error cargando archivos"), "danger");
+            this.state.files = [];
+            this.state.filteredFiles = [];
         } finally {
             this.state.loading = false;
         }
     }
 
     applyFilterAndSort() {
-        let list = [...this.state.files];
-        // En modo búsqueda global, los resultados ya vienen filtrados del servidor
-        // No aplicar filtro local sobre ellos
-        const q = this.state.search.trim().toLowerCase();
-        if (q && !this.state.searching) {
-            list = list.filter((f) => f.name.toLowerCase().includes(q));
-        }
-        const dir = this.state.sortDir === "asc" ? 1 : -1;
-        list.sort((a, b) => {
-            // carpetas primero
-            const af = !!a.folder, bf = !!b.folder;
-            if (af !== bf) return af ? -1 : 1;
-            let av, bv;
-            switch (this.state.sortBy) {
-                case "modified":
-                    av = a.lastModifiedDateTime || ""; bv = b.lastModifiedDateTime || ""; break;
-                case "size":
-                    av = a.size || 0; bv = b.size || 0; break;
-                case "type":
-                    av = (a.file?.mimeType || "folder"); bv = (b.file?.mimeType || "folder"); break;
-                default:
-                    av = a.name?.toLowerCase() || ""; bv = b.name?.toLowerCase() || "";
+        try {
+            let list = (this.state.files || []).filter(f => f && f.id);
+
+            const q = (this.state.search || "").trim().toLowerCase();
+            if (q && !this.state.searching) {
+                list = list.filter(f => (f.name || "").toLowerCase().includes(q));
             }
-            return av < bv ? -1 * dir : av > bv ? 1 * dir : 0;
-        });
-        this.state.filteredFiles = list;
+
+            const dir = this.state.sortDir === "asc" ? 1 : -1;
+            list.sort((a, b) => {
+                // carpetas siempre primero
+                const af = !!(a && a.folder);
+                const bf = !!(b && b.folder);
+                if (af !== bf) return af ? -1 : 1;
+
+                let av, bv;
+                switch (this.state.sortBy) {
+                    case "modified":
+                        av = a.lastModifiedDateTime || "";
+                        bv = b.lastModifiedDateTime || "";
+                        break;
+                    case "size":
+                        av = a.size || 0;
+                        bv = b.size || 0;
+                        break;
+                    case "type":
+                        av = (a.file && a.file.mimeType) || "folder";
+                        bv = (b.file && b.file.mimeType) || "folder";
+                        break;
+                    default:
+                        av = (a.name || "").toLowerCase();
+                        bv = (b.name || "").toLowerCase();
+                }
+                if (av < bv) return -1 * dir;
+                if (av > bv) return 1 * dir;
+                return 0;
+            });
+
+            this.state.filteredFiles = list;
+        } catch (e) {
+            console.error("applyFilterAndSort error:", e);
+            this.state.filteredFiles = this.state.files || [];
+        }
     }
 
     setSort(field) {
@@ -130,14 +161,17 @@ export class OneDriveApp extends Component {
 
     setView(v) { this.state.view = v; }
 
-    // -------- NAVIGATION --------
+    // =========================================================
+    // NAVIGATION
+    // =========================================================
     async openFolder(file) {
+        if (!file) return;
         if (!file.folder) {
-            // Doble click en archivo: abrir en Office Online / navegador (modo edición)
+            // Doble click en archivo: abrir en Office Online (modo edición)
             this.openExternal(file);
             return;
         }
-        // Si estábamos en búsqueda global, salir de ese modo
+        // Salir de modo búsqueda al navegar
         if (this.state.searching) {
             this.state.searching = false;
             this.state.search = "";
@@ -147,15 +181,13 @@ export class OneDriveApp extends Component {
     }
 
     /**
-     * Abre el archivo en su aplicación nativa de Microsoft (Office Online)
-     * usando la webUrl que provee Microsoft Graph. Esto permite EDITAR
-     * archivos de Excel/Word/PowerPoint en el navegador.
+     * Abre el archivo en su app nativa de Microsoft (Office Online)
+     * usando webUrl. Permite EDITAR Excel/Word/PowerPoint en el navegador.
      */
     openExternal(file) {
-        if (file.webUrl) {
+        if (file && file.webUrl) {
             window.open(file.webUrl, "_blank", "noopener");
         } else {
-            // Fallback: vista previa interna
             this.previewFile(file);
         }
     }
@@ -175,6 +207,7 @@ export class OneDriveApp extends Component {
             this.state.search = "";
         }
         const target = this.state.path[idx];
+        if (!target) return;
         this.state.path = this.state.path.slice(0, idx + 1);
         await this.loadFiles(target.id);
     }
@@ -190,24 +223,23 @@ export class OneDriveApp extends Component {
         await this.loadFiles(last ? last.id : null);
     }
 
-    // -------- SEARCH (GLOBAL) --------
+    // =========================================================
+    // SEARCH (GLOBAL en todo OneDrive)
+    // =========================================================
     async onSearchInput(ev) {
         this.state.search = ev.target.value;
 
-        // Cancelar timer pendiente
         if (this._searchDebounce) {
             clearTimeout(this._searchDebounce);
             this._searchDebounce = null;
         }
 
-        // Si se vacía el input, volver a la carpeta actual
         if (!this.state.search.trim()) {
             this.state.searching = false;
             await this.loadFiles(this.state.currentFolder);
             return;
         }
 
-        // Debounce 400ms: búsqueda global mientras escribe
         this._searchDebounce = setTimeout(async () => {
             await this._doGlobalSearch(this.state.search.trim());
         }, 400);
@@ -232,10 +264,14 @@ export class OneDriveApp extends Component {
                 query: q,
                 account_id: this.state.accountId,
             });
-            this.state.files = res.value || [];
+            const raw = (res && res.value) || [];
+            this.state.files = raw.filter(f => f && f.id && f.name);
             this.applyFilterAndSort();
         } catch (e) {
+            console.error("search error:", e);
             this.notify(_t("Error buscando"), "danger");
+            this.state.files = [];
+            this.state.filteredFiles = [];
         } finally {
             this.state.loading = false;
         }
@@ -251,18 +287,21 @@ export class OneDriveApp extends Component {
         await this.loadFiles(this.state.currentFolder);
     }
 
-    // -------- SELECTION --------
+    // =========================================================
+    // SELECTION
+    // =========================================================
     toggleSelect(file, ev) {
         if (ev) ev.stopPropagation();
-        if (this.state.selected.has(file.id)) {
-            this.state.selected.delete(file.id);
-        } else {
-            this.state.selected.add(file.id);
-        }
-        this.state.selected = new Set(this.state.selected);
+        if (!file) return;
+        const sel = new Set(this.state.selected);
+        if (sel.has(file.id)) sel.delete(file.id);
+        else sel.add(file.id);
+        this.state.selected = sel;
     }
 
-    isSelected(file) { return this.state.selected.has(file.id); }
+    isSelected(file) {
+        return file ? this.state.selected.has(file.id) : false;
+    }
 
     selectAll() {
         if (this.state.selected.size === this.state.filteredFiles.length) {
@@ -272,23 +311,31 @@ export class OneDriveApp extends Component {
         }
     }
 
-    // -------- CONTEXT MENU --------
+    // =========================================================
+    // CONTEXT MENU
+    // =========================================================
     openCtxMenu(file, ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        this.state.ctxMenu = { open: true, x: ev.clientX, y: ev.clientY, file };
+        if (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+        }
+        // Ajuste para que no se salga de la pantalla
+        const x = Math.min(ev.clientX, window.innerWidth - 240);
+        const y = Math.min(ev.clientY, window.innerHeight - 320);
+        this.state.ctxMenu = { open: true, x, y, file };
     }
 
     closeCtxMenu() {
-        if (this.state.ctxMenu.open) this.state.ctxMenu = { open: false, x: 0, y: 0, file: null };
+        if (this.state.ctxMenu.open) {
+            this.state.ctxMenu = { open: false, x: 0, y: 0, file: null };
+        }
     }
 
-    // -------- ACTIONS --------
-    /**
-     * Vista previa interna (iframe) - solo lectura.
-     * Para editar use openExternal().
-     */
+    // =========================================================
+    // ACTIONS
+    // =========================================================
     previewFile(file) {
+        if (!file) return;
         if (file.folder) {
             this.openFolder(file);
             return;
@@ -303,10 +350,8 @@ export class OneDriveApp extends Component {
         });
     }
 
-    /**
-     * Descargar archivo o carpeta (zip)
-     */
     downloadItem(file) {
+        if (!file) return;
         const url = file.folder
             ? `/onedrive/download_folder/${file.id}`
             : `/onedrive/download/${file.id}`;
@@ -330,6 +375,7 @@ export class OneDriveApp extends Component {
                     this.notify(_t("Carpeta creada"), "success");
                     await this.loadFiles(this.state.currentFolder);
                 } catch (e) {
+                    console.error("createFolder error:", e);
                     this.notify(_t("Error al crear"), "danger");
                 }
             },
@@ -337,6 +383,7 @@ export class OneDriveApp extends Component {
     }
 
     renameItem(file) {
+        if (!file) return;
         this.dialog.add(PromptDialog, {
             title: _t("Renombrar"),
             label: _t("Nuevo nombre"),
@@ -351,12 +398,9 @@ export class OneDriveApp extends Component {
                         account_id: this.state.accountId,
                     });
                     this.notify(_t("Renombrado"), "success");
-                    if (this.state.searching) {
-                        await this._doGlobalSearch(this.state.search.trim());
-                    } else {
-                        await this.loadFiles(this.state.currentFolder);
-                    }
+                    await this._refresh();
                 } catch (e) {
+                    console.error("rename error:", e);
                     this.notify(_t("Error al renombrar"), "danger");
                 }
             },
@@ -364,6 +408,7 @@ export class OneDriveApp extends Component {
     }
 
     deleteItem(file) {
+        if (!file) return;
         this.dialog.add(ConfirmDialog, {
             title: _t("Eliminar elemento"),
             message: _t('¿Seguro que deseas eliminar "%s"?', file.name),
@@ -378,12 +423,9 @@ export class OneDriveApp extends Component {
                         account_id: this.state.accountId,
                     });
                     this.notify(_t("Elemento eliminado"), "success");
-                    if (this.state.searching) {
-                        await this._doGlobalSearch(this.state.search.trim());
-                    } else {
-                        await this.loadFiles(this.state.currentFolder);
-                    }
+                    await this._refresh();
                 } catch (e) {
+                    console.error("delete error:", e);
                     this.notify(_t("Error al eliminar"), "danger");
                 }
             },
@@ -400,22 +442,30 @@ export class OneDriveApp extends Component {
             icon: "bi-trash",
             confirmLabel: _t("Eliminar todos"),
             onConfirm: async () => {
+                let ok = 0, ko = 0;
                 for (const id of ids) {
                     try {
-                        await rpc("/onedrive/delete", { item_id: id, account_id: this.state.accountId });
-                    } catch (e) { /* continue */ }
+                        await rpc("/onedrive/delete", {
+                            item_id: id,
+                            account_id: this.state.accountId,
+                        });
+                        ok++;
+                    } catch (e) {
+                        ko++;
+                    }
                 }
-                this.notify(_t("Elementos eliminados"), "success");
-                if (this.state.searching) {
-                    await this._doGlobalSearch(this.state.search.trim());
+                if (ko > 0) {
+                    this.notify(_t("%s eliminados, %s con error", ok, ko), "warning");
                 } else {
-                    await this.loadFiles(this.state.currentFolder);
+                    this.notify(_t("%s elementos eliminados", ok), "success");
                 }
+                await this._refresh();
             },
         });
     }
 
     shareItem(file) {
+        if (!file) return;
         this.dialog.add(ShareDialog, {
             file,
             accountId: this.state.accountId,
@@ -423,14 +473,19 @@ export class OneDriveApp extends Component {
     }
 
     showProperties(file) {
+        if (!file) return;
         this.dialog.add(PropertiesDialog, { file });
     }
 
-    // -------- UPLOAD --------
-    triggerUpload() { this.fileInputRef.el?.click(); }
+    // =========================================================
+    // UPLOAD
+    // =========================================================
+    triggerUpload() {
+        if (this.fileInputRef.el) this.fileInputRef.el.click();
+    }
 
     async uploadFile(ev) {
-        const files = ev.target?.files || ev;
+        const files = (ev && ev.target && ev.target.files) || ev;
         if (!files || !files.length) return;
         for (const file of files) {
             await this._uploadOne(file);
@@ -443,8 +498,12 @@ export class OneDriveApp extends Component {
         this.state.uploadProgress = { name: file.name, percent: 0 };
         const formData = new FormData();
         formData.append("file", file);
-        if (this.state.accountId) formData.append("account_id", this.state.accountId);
-        if (this.state.currentFolder) formData.append("parent_id", this.state.currentFolder);
+        if (this.state.accountId) {
+            formData.append("account_id", this.state.accountId);
+        }
+        if (this.state.currentFolder) {
+            formData.append("parent_id", this.state.currentFolder);
+        }
 
         return new Promise((resolve) => {
             const xhr = new XMLHttpRequest();
@@ -475,43 +534,66 @@ export class OneDriveApp extends Component {
         });
     }
 
-    // -------- DRAG & DROP --------
+    // =========================================================
+    // DRAG & DROP
+    // =========================================================
     onDragOver(ev) {
         ev.preventDefault();
-        this.state.dragOver = true;
+        if (ev.dataTransfer && ev.dataTransfer.types &&
+            ev.dataTransfer.types.indexOf("Files") !== -1) {
+            this.state.dragOver = true;
+        }
     }
+
     onDragLeave(ev) {
         ev.preventDefault();
-        this.state.dragOver = false;
+        // Solo desactivar si salimos al exterior del componente
+        if (!this.rootRef.el || !this.rootRef.el.contains(ev.relatedTarget)) {
+            this.state.dragOver = false;
+        }
     }
+
     async onDrop(ev) {
         ev.preventDefault();
         this.state.dragOver = false;
-        const files = ev.dataTransfer?.files;
+        const files = ev.dataTransfer && ev.dataTransfer.files;
         if (files && files.length) await this.uploadFile(files);
     }
 
-    // -------- KEYBOARD --------
+    // =========================================================
+    // KEYBOARD
+    // =========================================================
     onKeyDown(ev) {
         if (ev.key === "Escape") {
             this.state.selected = new Set();
             this.closeCtxMenu();
         }
         if (ev.key === "Delete" && this.state.selected.size > 0) {
-            this.deleteSelected();
+            // Solo si no estamos en un input
+            const tag = (ev.target && ev.target.tagName) || "";
+            if (tag !== "INPUT" && tag !== "TEXTAREA") {
+                this.deleteSelected();
+            }
         }
     }
 
-    // -------- UTIL --------
+    // =========================================================
+    // UTIL
+    // =========================================================
     notify(msg, type = "info") {
         this.notification.add(msg, { type });
     }
 
     refresh() {
-        if (this.state.searching) {
-            this._doGlobalSearch(this.state.search.trim());
+        this._refresh();
+    }
+
+    /** Refresca según el modo actual: búsqueda o navegación normal */
+    async _refresh() {
+        if (this.state.searching && this.state.search.trim()) {
+            await this._doGlobalSearch(this.state.search.trim());
         } else {
-            this.loadFiles(this.state.currentFolder);
+            await this.loadFiles(this.state.currentFolder);
         }
     }
 }
