@@ -11,7 +11,7 @@ export class OneDriveApp extends Component {
             files: [],
             loading: true,
             currentFolder: null,
-            path: [], // breadcrumb
+            path: [],
         });
 
         onWillStart(async () => {
@@ -22,19 +22,23 @@ export class OneDriveApp extends Component {
     // ---------------------------------------
     // LOAD FILES
     // ---------------------------------------
-    async loadFiles(folderId = null, folderName = "Inicio") {
-
+    async loadFiles(folderId = null) {
         this.state.loading = true;
 
-        const result = await rpc("/onedrive/list", {
-            parent_id: folderId
-        });
+        try {
+            const result = await rpc("/onedrive/list", {
+                parent_id: folderId
+            });
 
-        this.state.files = result.value || [];
-        this.state.currentFolder = folderId;
+            this.state.files = result.value || [];
+            this.state.currentFolder = folderId;
 
-        if (folderId === null) {
-            this.state.path = [];
+            if (folderId === null) {
+                this.state.path = [];
+            }
+
+        } catch (error) {
+            console.error("Error loading files", error);
         }
 
         this.state.loading = false;
@@ -55,23 +59,20 @@ export class OneDriveApp extends Component {
     }
 
     // ---------------------------------------
-    // GO TO BREADCRUMB
-    // ---------------------------------------
-    async goTo(index) {
-
-        const target = this.state.path[index];
-
-        this.state.path = this.state.path.slice(0, index + 1);
-
-        await this.loadFiles(target.id);
-    }
-
-    // ---------------------------------------
     // GO ROOT
     // ---------------------------------------
     async goRoot() {
         this.state.path = [];
         await this.loadFiles(null);
+    }
+
+    // ---------------------------------------
+    // GO TO BREADCRUMB
+    // ---------------------------------------
+    async goTo(index) {
+        const target = this.state.path[index];
+        this.state.path = this.state.path.slice(0, index + 1);
+        await this.loadFiles(target.id);
     }
 
     // ---------------------------------------
@@ -98,7 +99,6 @@ export class OneDriveApp extends Component {
     // CREATE FOLDER
     // ---------------------------------------
     async createFolder() {
-
         const name = prompt("Nombre de carpeta:");
         if (!name) return;
 
@@ -114,7 +114,6 @@ export class OneDriveApp extends Component {
     // UPLOAD
     // ---------------------------------------
     async uploadFile(ev) {
-
         const file = ev.target.files[0];
         if (!file) return;
 
@@ -129,6 +128,8 @@ export class OneDriveApp extends Component {
         await this.loadFiles(this.state.currentFolder);
     }
 }
+
+// 🔥 CRÍTICO: asignar template correcto
 OneDriveApp.template = "odoo_onedrive_integration.onedrive_app";
 
 registry.category("actions").add("onedrive_app", OneDriveApp);

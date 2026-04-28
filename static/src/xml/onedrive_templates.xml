@@ -1,6 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-    <t t-name="onedrive_app" owl="1">
+    <!-- 🔥 IMPORTANTE: nombre EXACTO -->
+    <t t-name="odoo_onedrive_integration.onedrive_app" owl="1">
+
         <div class="o_onedrive_container">
 
             <!-- HEADER -->
@@ -23,14 +26,11 @@
 
             <!-- BREADCRUMB -->
             <div class="o_onedrive_breadcrumb">
-                <span class="breadcrumb-item" t-on-click="goRoot">
-                    Inicio
-                </span>
+                <span t-on-click="goRoot" class="breadcrumb-item">Inicio</span>
 
                 <t t-foreach="state.path" t-as="p" t-index="i" t-key="p.id">
                     <span> / </span>
-                    <span class="breadcrumb-item"
-                          t-on-click="() => goTo(i)">
+                    <span t-on-click="() => goTo(i)" class="breadcrumb-item">
                         <t t-esc="p.name"/>
                     </span>
                 </t>
@@ -41,7 +41,7 @@
                 <div>Cargando...</div>
             </t>
 
-            <!-- GRID -->
+            <!-- FILES -->
             <t t-if="!state.loading">
                 <div class="o_onedrive_grid">
 
@@ -79,6 +79,7 @@
             </t>
 
         </div>
+
     </t>
 
 </templates>
