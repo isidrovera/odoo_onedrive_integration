@@ -41,8 +41,7 @@ Funcionalidades:
             "odoo_onedrive_integration/static/src/js/dialogs/share_dialog.js",
             "odoo_onedrive_integration/static/src/js/dialogs/properties_dialog.js",
             "odoo_onedrive_integration/static/src/xml/onedrive_templates.xml",
-            "odoo_onedrive_integration/static/src/css/onedrive.css",
-        ],
+           
     },
 
     # Flags
