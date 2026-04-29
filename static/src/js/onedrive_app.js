@@ -51,6 +51,22 @@ export class OneDriveApp extends Component {
         this._onDocClick = this.closeCtxMenu.bind(this);
         this._onDocKey = this.onKeyDown.bind(this);
 
+        // =========================================================
+        // MODO SELECTOR (cuando se usa dentro del wizard de envío)
+        // Cuando el componente padre provee env.onedriveSelector con
+        // mode="select", el OneDriveApp oculta acciones destructivas
+        // y notifica los archivos elegidos al padre.
+        // =========================================================
+        this.selectorMode = !!(
+            this.env.onedriveSelector &&
+            this.env.onedriveSelector.mode === "select"
+        );
+
+        // Cache de archivos seleccionados a través de carpetas
+        // (id -> {id, name, size}) para que la selección persista
+        // al navegar dentro del selector.
+        this._selectedCache = new Map();
+
         onWillStart(async () => {
             await this.loadAccounts();
             await this.loadFiles();
@@ -81,6 +97,9 @@ export class OneDriveApp extends Component {
     // =========================================================
     async loadFiles(folderId = null) {
         this.state.loading = true;
+        // En modo selector NO reseteamos la selección al navegar:
+        // el usuario puede haber elegido archivos en otras carpetas
+        // y queremos mantenerlos. Solo limpiamos el Set visible.
         this.state.selected = new Set();
         try {
             const result = await rpc("/onedrive/list", {
@@ -93,6 +112,17 @@ export class OneDriveApp extends Component {
             this.state.currentFolder = folderId;
             if (folderId === null) this.state.path = [];
             this.applyFilterAndSort();
+
+            // Re-marcar como seleccionados los archivos que ya estaban
+            // en el cache global del selector (si aplica).
+            if (this.selectorMode && this._selectedCache.size > 0) {
+                const visibleIds = new Set(this.state.files.map(f => f.id));
+                const newSel = new Set();
+                for (const id of this._selectedCache.keys()) {
+                    if (visibleIds.has(id)) newSel.add(id);
+                }
+                this.state.selected = newSel;
+            }
         } catch (e) {
             console.error("loadFiles error:", e);
             this.notify(_t("Error cargando archivos"), "danger");
@@ -167,7 +197,13 @@ export class OneDriveApp extends Component {
     async openFolder(file) {
         if (!file) return;
         if (!file.folder) {
-            // Doble click en archivo: abrir en Office Online (modo edición)
+            // En modo selector: doble click selecciona archivo
+            // en lugar de abrirlo en Office Online.
+            if (this.selectorMode) {
+                this.toggleSelect(file);
+                return;
+            }
+            // Doble click en archivo (modo normal): abrir en Office Online
             this.openExternal(file);
             return;
         }
@@ -267,6 +303,16 @@ export class OneDriveApp extends Component {
             const raw = (res && res.value) || [];
             this.state.files = raw.filter(f => f && f.id && f.name);
             this.applyFilterAndSort();
+
+            // Re-marcar selección desde cache (modo selector)
+            if (this.selectorMode && this._selectedCache.size > 0) {
+                const visibleIds = new Set(this.state.files.map(f => f.id));
+                const newSel = new Set();
+                for (const id of this._selectedCache.keys()) {
+                    if (visibleIds.has(id)) newSel.add(id);
+                }
+                this.state.selected = newSel;
+            }
         } catch (e) {
             console.error("search error:", e);
             this.notify(_t("Error buscando"), "danger");
@@ -293,10 +339,25 @@ export class OneDriveApp extends Component {
     toggleSelect(file, ev) {
         if (ev) ev.stopPropagation();
         if (!file) return;
+        // En modo selector NO se permite seleccionar carpetas
+        if (this.selectorMode && file.folder) return;
+
         const sel = new Set(this.state.selected);
-        if (sel.has(file.id)) sel.delete(file.id);
-        else sel.add(file.id);
+        if (sel.has(file.id)) {
+            sel.delete(file.id);
+            if (this.selectorMode) this._selectedCache.delete(file.id);
+        } else {
+            sel.add(file.id);
+            if (this.selectorMode) {
+                this._selectedCache.set(file.id, {
+                    id: file.id,
+                    name: file.name,
+                    size: file.size,
+                });
+            }
+        }
         this.state.selected = sel;
+        this._notifySelectorChange();
     }
 
     isSelected(file) {
@@ -305,10 +366,40 @@ export class OneDriveApp extends Component {
 
     selectAll() {
         if (this.state.selected.size === this.state.filteredFiles.length) {
+            // deseleccionar todos los visibles
+            if (this.selectorMode) {
+                for (const id of this.state.selected) {
+                    this._selectedCache.delete(id);
+                }
+            }
             this.state.selected = new Set();
         } else {
-            this.state.selected = new Set(this.state.filteredFiles.map(f => f.id));
+            // En modo selector solo seleccionamos archivos, no carpetas
+            const items = this.state.filteredFiles
+                .filter(f => !this.selectorMode || !f.folder);
+            this.state.selected = new Set(items.map(f => f.id));
+            if (this.selectorMode) {
+                for (const f of items) {
+                    this._selectedCache.set(f.id, {
+                        id: f.id,
+                        name: f.name,
+                        size: f.size,
+                    });
+                }
+            }
         }
+        this._notifySelectorChange();
+    }
+
+    /**
+     * Notifica al diálogo padre (si estamos en modo selector) los
+     * archivos elegidos acumulados a través de las distintas carpetas.
+     */
+    _notifySelectorChange() {
+        if (!this.selectorMode) return;
+        const cb = this.env.onedriveSelector && this.env.onedriveSelector.onSelectionChange;
+        if (!cb) return;
+        cb(Array.from(this._selectedCache.values()));
     }
 
     // =========================================================
@@ -538,6 +629,8 @@ export class OneDriveApp extends Component {
     // DRAG & DROP
     // =========================================================
     onDragOver(ev) {
+        // En modo selector no permitimos subir archivos por drag&drop
+        if (this.selectorMode) return;
         ev.preventDefault();
         if (ev.dataTransfer && ev.dataTransfer.types &&
             ev.dataTransfer.types.indexOf("Files") !== -1) {
@@ -546,6 +639,7 @@ export class OneDriveApp extends Component {
     }
 
     onDragLeave(ev) {
+        if (this.selectorMode) return;
         ev.preventDefault();
         // Solo desactivar si salimos al exterior del componente
         if (!this.rootRef.el || !this.rootRef.el.contains(ev.relatedTarget)) {
@@ -554,6 +648,7 @@ export class OneDriveApp extends Component {
     }
 
     async onDrop(ev) {
+        if (this.selectorMode) return;
         ev.preventDefault();
         this.state.dragOver = false;
         const files = ev.dataTransfer && ev.dataTransfer.files;
@@ -566,9 +661,13 @@ export class OneDriveApp extends Component {
     onKeyDown(ev) {
         if (ev.key === "Escape") {
             this.state.selected = new Set();
+            if (this.selectorMode) {
+                this._selectedCache.clear();
+                this._notifySelectorChange();
+            }
             this.closeCtxMenu();
         }
-        if (ev.key === "Delete" && this.state.selected.size > 0) {
+        if (ev.key === "Delete" && this.state.selected.size > 0 && !this.selectorMode) {
             // Solo si no estamos en un input
             const tag = (ev.target && ev.target.tagName) || "";
             if (tag !== "INPUT" && tag !== "TEXTAREA") {

@@ -36,21 +36,23 @@
         <!-- TOOLBAR -->
         <div class="od_toolbar">
             <div class="od_toolbar_actions">
-                <button class="btn btn-primary btn-sm" t-on-click="() => this.triggerUpload()">
-                    <i class="bi bi-cloud-upload"/> Subir
-                </button>
-                <button class="btn btn-light btn-sm" t-on-click="() => this.createFolder()">
-                    <i class="bi bi-folder-plus"/> Nueva carpeta
-                </button>
-                <input type="file" t-ref="fileInput" multiple="multiple"
-                       style="display:none;" t-on-change="uploadFile"/>
+                <t t-if="!selectorMode">
+                    <button class="btn btn-primary btn-sm" t-on-click="() => this.triggerUpload()">
+                        <i class="bi bi-cloud-upload"/> Subir
+                    </button>
+                    <button class="btn btn-light btn-sm" t-on-click="() => this.createFolder()">
+                        <i class="bi bi-folder-plus"/> Nueva carpeta
+                    </button>
+                    <input type="file" t-ref="fileInput" multiple="multiple"
+                           style="display:none;" t-on-change="uploadFile"/>
+                </t>
 
                 <t t-if="state.selected.size > 0">
                     <div class="od_separator"/>
                     <span class="od_selcount">
                         <i class="bi bi-check-circle-fill"/> <t t-esc="state.selected.size"/> seleccionados
                     </span>
-                    <button class="btn btn-danger btn-sm" t-on-click="() => this.deleteSelected()">
+                    <button t-if="!selectorMode" class="btn btn-danger btn-sm" t-on-click="() => this.deleteSelected()">
                         <i class="bi bi-trash"/> Eliminar
                     </button>
                 </t>
@@ -101,7 +103,7 @@
         </div>
 
         <!-- DROPZONE -->
-        <div t-if="state.dragOver" class="od_dropoverlay">
+        <div t-if="state.dragOver and !selectorMode" class="od_dropoverlay">
             <div class="od_dropmsg">
                 <i class="bi bi-cloud-upload-fill"/>
                 <h2>Suelta los archivos aquí</h2>
@@ -120,7 +122,7 @@
             <i class="bi bi-folder2-open"/>
             <h3 t-if="state.searching">No hay resultados para "<t t-esc="state.search"/>"</h3>
             <h3 t-else="">Esta carpeta está vacía</h3>
-            <p>Arrastra archivos aquí o haz clic en Subir</p>
+            <p t-if="!selectorMode">Arrastra archivos aquí o haz clic en Subir</p>
         </div>
 
         <!-- GRID VIEW -->
@@ -159,7 +161,7 @@
                         </div>
                     </div>
 
-                    <div class="od_card_actions">
+                    <div t-if="!selectorMode" class="od_card_actions">
                         <button class="btn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
                             <i class="bi bi-eye"/>
                         </button>
@@ -217,7 +219,7 @@
                         <t t-if="file.folder">—</t>
                         <t t-else=""><t t-esc="formatBytes(file.size)"/></t>
                     </div>
-                    <div class="od_col_actions">
+                    <div t-if="!selectorMode" class="od_col_actions">
                         <button class="btn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
                             <i class="bi bi-eye"/>
                         </button>
@@ -241,23 +243,27 @@
             <button class="btn" t-on-click="() => this.previewFile(state.ctxMenu.file)">
                 <i class="bi bi-eye"/> Vista previa
             </button>
-            <button class="btn" t-on-click="() => this.downloadItem(state.ctxMenu.file)">
+            <button t-if="!selectorMode" class="btn" t-on-click="() => this.downloadItem(state.ctxMenu.file)">
                 <i class="bi bi-download"/> Descargar
             </button>
-            <button class="btn" t-on-click="() => this.shareItem(state.ctxMenu.file)">
+            <button t-if="!selectorMode" class="btn" t-on-click="() => this.shareItem(state.ctxMenu.file)">
                 <i class="bi bi-share"/> Compartir
             </button>
-            <div class="od_ctxsep"/>
-            <button class="btn" t-on-click="() => this.renameItem(state.ctxMenu.file)">
-                <i class="bi bi-pencil"/> Renombrar
-            </button>
+            <t t-if="!selectorMode">
+                <div class="od_ctxsep"/>
+                <button class="btn" t-on-click="() => this.renameItem(state.ctxMenu.file)">
+                    <i class="bi bi-pencil"/> Renombrar
+                </button>
+            </t>
             <button class="btn" t-on-click="() => this.showProperties(state.ctxMenu.file)">
                 <i class="bi bi-info-circle"/> Propiedades
             </button>
-            <div class="od_ctxsep"/>
-            <button class="btn danger" t-on-click="() => this.deleteItem(state.ctxMenu.file)">
-                <i class="bi bi-trash"/> Eliminar
-            </button>
+            <t t-if="!selectorMode">
+                <div class="od_ctxsep"/>
+                <button class="btn danger" t-on-click="() => this.deleteItem(state.ctxMenu.file)">
+                    <i class="bi bi-trash"/> Eliminar
+                </button>
+            </t>
         </div>
     </div>
 </t>
