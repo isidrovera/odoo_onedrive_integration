@@ -2,6 +2,16 @@
    ONEDRIVE APP — ESTILOS COMPLETOS
    ============================================================ */
 
+/* Asegurar que los contenedores ancestros tengan altura para que
+   el flexbox interno calcule bien y permita scroll. */
+.o_action_manager,
+.o_action_manager > .o_action,
+.o_action_manager > .o_action > .o_action_manager,
+.o_content {
+    height: 100%;
+    min-height: 0;
+}
+
 /* Contenedor raíz */
 .o_onedrive_app {
     position: relative;
@@ -247,6 +257,13 @@
 
 /* ============================================================
    GRID VIEW (kanban)
+   ----------------------------------------------------------------
+   CLAVES PARA QUE FUNCIONE BIEN CON MUCHOS ARCHIVOS:
+   - grid-auto-rows: min-content  -> las filas toman el alto del
+     contenido en vez de estirarse/comprimirse.
+   - align-content: start         -> no centra ni distribuye filas.
+   - .od_card tiene min-height fijo -> nunca se aplasta.
+   - overflow-y: auto + flex:1 + min-height:0 -> scroll real.
    ============================================================ */
 .o_onedrive_app .od_grid {
     flex: 1 1 auto;
@@ -255,12 +272,13 @@
     overflow-x: hidden;
     padding: 16px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-auto-rows: min-content;
+    gap: 14px;
     align-content: start;
 }
 
-/* CARD */
+/* CARD — altura mínima garantizada */
 .o_onedrive_app .od_card {
     position: relative;
     background: #fff;
@@ -272,6 +290,8 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 170px;          /* impide que se aplaste */
+    height: 170px;              /* altura fija para uniformidad */
 }
 .o_onedrive_app .od_card:hover {
     transform: translateY(-2px);
@@ -309,8 +329,9 @@
 .o_onedrive_app .od_card_check i { font-size: 13px; }
 
 .o_onedrive_app .od_card_thumb {
-    flex: 0 0 90px;
-    height: 90px;
+    flex: 0 0 100px;
+    height: 100px;
+    min-height: 100px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -324,15 +345,22 @@
     object-fit: cover;
 }
 .o_onedrive_app .od_card_icon {
-    font-size: 44px;
+    font-size: 48px;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.o_onedrive_app .od_card_icon i { font-size: inherit; }
+.o_onedrive_app .od_card_icon i { font-size: inherit; line-height: 1; }
 
 .o_onedrive_app .od_card_body {
     flex: 1 1 auto;
+    min-height: 0;
     padding: 8px 10px 10px;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 .o_onedrive_app .od_card_name {
     font-weight: 500;
@@ -741,16 +769,60 @@
 .od_props_table a:hover { text-decoration: underline; }
 
 /* ============================================================
-   RESPONSIVE
+   RESPONSIVE — múltiples breakpoints
    ============================================================ */
+
+/* Pantallas grandes (>= 1600px): tarjetas un poco más amplias */
+@media (min-width: 1600px) {
+    .o_onedrive_app .od_grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 16px;
+    }
+}
+
+/* Laptops medianas (1200px–1599px): default ya cubre */
+
+/* Tablets / laptops pequeñas (768px–1199px) */
+@media (max-width: 1199px) {
+    .o_onedrive_app .od_grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+    }
+    .o_onedrive_app .od_card {
+        min-height: 160px;
+        height: 160px;
+    }
+    .o_onedrive_app .od_card_thumb {
+        flex: 0 0 90px;
+        height: 90px;
+        min-height: 90px;
+    }
+    .o_onedrive_app .od_card_icon { font-size: 42px; }
+}
+
+/* Móviles / pantallas estrechas (<= 768px) */
 @media (max-width: 768px) {
     .o_onedrive_app .od_topbar { padding: 10px 12px; gap: 10px; }
     .o_onedrive_app .od_logo span { display: none; }
     .o_onedrive_app .od_toolbar { padding: 8px 12px; }
     .o_onedrive_app .od_breadcrumb { padding: 8px 12px; }
-    .o_onedrive_app .od_grid { padding: 10px; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-    .o_onedrive_app .od_card_thumb { flex: 0 0 70px; height: 70px; }
-    .o_onedrive_app .od_card_icon { font-size: 36px; }
+
+    .o_onedrive_app .od_grid {
+        padding: 10px;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    }
+    .o_onedrive_app .od_card {
+        min-height: 150px;
+        height: 150px;
+    }
+    .o_onedrive_app .od_card_thumb {
+        flex: 0 0 80px;
+        height: 80px;
+        min-height: 80px;
+    }
+    .o_onedrive_app .od_card_icon { font-size: 38px; }
+
     .o_onedrive_app .od_list_header,
     .o_onedrive_app .od_list_row {
         grid-template-columns: 30px minmax(0, 1fr) 80px;
@@ -758,4 +830,24 @@
     }
     .o_onedrive_app .od_col_modified,
     .o_onedrive_app .od_col_actions { display: none; }
+}
+
+/* Móviles muy pequeños (<= 480px) */
+@media (max-width: 480px) {
+    .o_onedrive_app .od_grid {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 8px;
+    }
+    .o_onedrive_app .od_card {
+        min-height: 140px;
+        height: 140px;
+    }
+    .o_onedrive_app .od_card_thumb {
+        flex: 0 0 70px;
+        height: 70px;
+        min-height: 70px;
+    }
+    .o_onedrive_app .od_card_icon { font-size: 32px; }
+    .o_onedrive_app .od_card_name { font-size: 12px; }
+    .o_onedrive_app .od_card_meta { font-size: 10px; }
 }
