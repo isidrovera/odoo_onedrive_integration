@@ -45,13 +45,13 @@ class OneDriveAccount(models.Model):
         readonly=True,
     )
 
-    access_token = fields.Text(
+    access_token = fields.Char(
         string="Access Token",
         groups="base.group_system",
         copy=False,
     )
 
-    refresh_token = fields.Text(
+    refresh_token = fields.Char(
         string="Refresh Token",
         groups="base.group_system",
         copy=False,
