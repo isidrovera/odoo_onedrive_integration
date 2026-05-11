@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
     <!-- ========================================= -->
@@ -13,9 +14,9 @@
     <!-- MENÚ PRINCIPAL -->
     <!-- ========================================= -->
     <menuitem id="menu_onedrive_root"
-          name="OneDrive"
-          web_icon="odoo_onedrive_integration,static/description/icon.png"
-          sequence="10"/>
+              name="OneDrive"
+              web_icon="odoo_onedrive_integration,static/description/icon.png"
+              sequence="10"/>
 
 
     <!-- ========================================= -->
@@ -34,7 +35,56 @@
     <menuitem id="menu_onedrive_config"
               name="Configuración"
               parent="menu_onedrive_root"
-              sequence="2"/>
+              sequence="2"
+              groups="base.group_system"/>
+
+
+    <!-- ========================================= -->
+    <!-- SEARCH CUENTAS -->
+    <!-- ========================================= -->
+    <record id="view_onedrive_account_search" model="ir.ui.view">
+        <field name="name">onedrive.account.search</field>
+        <field name="model">onedrive.account</field>
+        <field name="arch" type="xml">
+            <search string="Buscar cuentas OneDrive">
+
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="tenant_id"/>
+
+                <filter string="Activas"
+                        name="filter_active"
+                        domain="[('active', '=', True)]"/>
+
+                <filter string="Archivadas"
+                        name="filter_inactive"
+                        domain="[('active', '=', False)]"/>
+
+                <separator/>
+
+                <filter string="Conectadas"
+                        name="filter_connected"
+                        domain="[('access_token', '!=', False)]"/>
+
+                <filter string="Sin conexión"
+                        name="filter_not_connected"
+                        domain="[('access_token', '=', False)]"/>
+
+                <separator/>
+
+                <group expand="0" string="Agrupar por">
+                    <filter string="Activo"
+                            name="group_active"
+                            context="{'group_by': 'active'}"/>
+
+                    <filter string="Vencimiento token"
+                            name="group_token_expiry"
+                            context="{'group_by': 'token_expiry'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
 
 
     <!-- ========================================= -->
@@ -43,7 +93,17 @@
     <record id="action_onedrive_account" model="ir.actions.act_window">
         <field name="name">Cuentas OneDrive</field>
         <field name="res_model">onedrive.account</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="view_onedrive_account_search"/>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crea una cuenta de conexión con Microsoft OneDrive.
+            </p>
+            <p>
+                Configura las credenciales de Azure y conecta la cuenta con Microsoft.
+            </p>
+        </field>
     </record>
 
 
@@ -54,20 +114,130 @@
               name="Cuentas"
               parent="menu_onedrive_config"
               action="action_onedrive_account"
-              sequence="1"/>
+              sequence="1"
+              groups="base.group_system"/>
 
 
     <!-- ========================================= -->
-    <!-- VISTA LIST (ANTES TREE) -->
+    <!-- VISTA KANBAN -->
+    <!-- ========================================= -->
+    <record id="view_onedrive_account_kanban" model="ir.ui.view">
+        <field name="name">onedrive.account.kanban</field>
+        <field name="model">onedrive.account</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="tenant_id"/>
+                <field name="token_expiry"/>
+                <field name="active"/>
+                <field name="is_connected"/>
+                <field name="token_status"/>
+
+                <templates>
+                    <t t-name="card">
+
+                        <div class="oe_kanban_global_click o_kanban_record">
+
+                            <div class="o_kanban_record_top">
+                                <div class="o_kanban_record_headings">
+                                    <strong class="o_kanban_record_title">
+                                        <field name="name"/>
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <div class="o_kanban_record_body mt-2">
+
+                                <div>
+                                    <strong>Client ID:</strong>
+                                    <span>
+                                        <field name="client_id"/>
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <strong>Tenant ID:</strong>
+                                    <span>
+                                        <field name="tenant_id"/>
+                                    </span>
+                                </div>
+
+                                <div class="mt-2">
+                                    <strong>Estado:</strong>
+
+                                    <t t-if="record.token_status.raw_value == 'connected'">
+                                        <span class="badge text-bg-success">
+                                            Conectado
+                                        </span>
+                                    </t>
+
+                                    <t t-elif="record.token_status.raw_value == 'expired'">
+                                        <span class="badge text-bg-danger">
+                                            Token vencido
+                                        </span>
+                                    </t>
+
+                                    <t t-else="">
+                                        <span class="badge text-bg-warning">
+                                            Sin conexión
+                                        </span>
+                                    </t>
+                                </div>
+
+                                <div t-if="record.token_expiry.raw_value" class="mt-1">
+                                    <strong>Vence:</strong>
+                                    <field name="token_expiry"/>
+                                </div>
+
+                            </div>
+
+                            <div class="o_kanban_record_bottom mt-3">
+
+                                <div class="oe_kanban_bottom_left">
+                                    <t t-if="record.active.raw_value">
+                                        <span class="badge text-bg-primary">
+                                            Activa
+                                        </span>
+                                    </t>
+                                    <t t-else="">
+                                        <span class="badge text-bg-secondary">
+                                            Archivada
+                                        </span>
+                                    </t>
+                                </div>
+
+                                <div class="oe_kanban_bottom_right">
+                                    <button type="object"
+                                            name="action_connect_onedrive"
+                                            string="Conectar"
+                                            class="btn btn-primary btn-sm"/>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+
+    <!-- ========================================= -->
+    <!-- VISTA LIST -->
     <!-- ========================================= -->
     <record id="view_onedrive_account_list" model="ir.ui.view">
         <field name="name">onedrive.account.list</field>
         <field name="model">onedrive.account</field>
         <field name="arch" type="xml">
-            <list>
+            <list string="Cuentas OneDrive">
                 <field name="name"/>
                 <field name="client_id"/>
                 <field name="tenant_id"/>
+                <field name="token_status"/>
+                <field name="token_expiry"/>
                 <field name="active"/>
             </list>
         </field>
@@ -82,35 +252,95 @@
         <field name="model">onedrive.account</field>
         <field name="arch" type="xml">
             <form string="Cuenta OneDrive">
-                <sheet>
-                    <!-- BOTÓN CONECTAR -->
+
+                <header>
                     <button string="Conectar con Microsoft"
                             type="object"
                             name="action_connect_onedrive"
                             class="btn-primary"/>
 
+                    <button string="Actualizar token"
+                            type="object"
+                            name="action_refresh_token"
+                            class="btn-secondary"
+                            invisible="not refresh_token"
+                            groups="base.group_system"/>
+
+                    <button string="Eliminar tokens"
+                            type="object"
+                            name="action_clear_tokens"
+                            class="btn-secondary"
+                            invisible="not refresh_token and not access_token"
+                            confirm="¿Está seguro de eliminar los tokens de esta cuenta?"
+                            groups="base.group_system"/>
+                </header>
+
+                <sheet>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   placeholder="Ejemplo: Cuenta principal OneDrive"/>
+                        </h1>
+                    </div>
+
                     <group>
-                        <field name="name"/>
-                        <field name="client_id"/>
-                        <field name="client_secret"/>
-                        <field name="tenant_id"/>
-                        <field name="redirect_uri" readonly="1"/>
+                        <group string="Datos de aplicación">
+                            <field name="client_id"/>
+                            <field name="client_secret"
+                                   password="True"
+                                   groups="base.group_system"/>
+                            <field name="tenant_id"/>
+                            <field name="redirect_uri" readonly="1"/>
+                            <field name="active"/>
+                        </group>
+
+                        <group string="Estado de conexión">
+                            <field name="token_status" readonly="1"/>
+                            <field name="is_connected" readonly="1"/>
+                            <field name="token_expiry" readonly="1"/>
+                        </group>
                     </group>
 
-                    <group string="Tokens">
-                        <field name="access_token" readonly="1"/>
-                        <field name="refresh_token" readonly="1"/>
-                        <field name="token_expiry" readonly="1"/>
-                    </group>
+                    <notebook>
 
-                    <footer>
-                        <button string="Conectar con Microsoft"
-                                type="object"
-                                name="action_connect_onedrive"
-                                class="btn-primary"/>
-                    </footer>
+                        <page string="Configuración">
+                            <group>
+                                <group string="Credenciales Microsoft">
+                                    <field name="client_id"/>
+                                    <field name="client_secret"
+                                           password="True"
+                                           groups="base.group_system"/>
+                                    <field name="tenant_id"/>
+                                </group>
+
+                                <group string="URL de redirección">
+                                    <field name="redirect_uri" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+
+                        <page string="Tokens" groups="base.group_system">
+                            <group>
+                                <field name="access_token"
+                                       readonly="1"
+                                       password="True"/>
+                                <field name="refresh_token"
+                                       readonly="1"
+                                       password="True"/>
+                                <field name="token_expiry"
+                                       readonly="1"/>
+                                <field name="oauth_state"
+                                       readonly="1"
+                                       password="True"/>
+                            </group>
+                        </page>
+
+                    </notebook>
 
                 </sheet>
+
             </form>
         </field>
     </record>
