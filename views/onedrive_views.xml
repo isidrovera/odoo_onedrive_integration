@@ -39,52 +39,6 @@
               groups="base.group_system"/>
 
 
-    <!-- ========================================= -->
-    <!-- SEARCH CUENTAS -->
-    <!-- ========================================= -->
-    <record id="view_onedrive_account_search" model="ir.ui.view">
-        <field name="name">onedrive.account.search</field>
-        <field name="model">onedrive.account</field>
-        <field name="arch" type="xml">
-            <search string="Buscar cuentas OneDrive">
-
-                <field name="name"/>
-                <field name="client_id"/>
-                <field name="tenant_id"/>
-
-                <filter string="Activas"
-                        name="filter_active"
-                        domain="[('active', '=', True)]"/>
-
-                <filter string="Archivadas"
-                        name="filter_inactive"
-                        domain="[('active', '=', False)]"/>
-
-                <separator/>
-
-                <filter string="Conectadas"
-                        name="filter_connected"
-                        domain="[('access_token', '!=', False)]"/>
-
-                <filter string="Sin conexión"
-                        name="filter_not_connected"
-                        domain="[('access_token', '=', False)]"/>
-
-                <separator/>
-
-                <group expand="0" string="Agrupar por">
-                    <filter string="Activo"
-                            name="group_active"
-                            context="{'group_by': 'active'}"/>
-
-                    <filter string="Vencimiento token"
-                            name="group_token_expiry"
-                            context="{'group_by': 'token_expiry'}"/>
-                </group>
-
-            </search>
-        </field>
-    </record>
 
 
     <!-- ========================================= -->
