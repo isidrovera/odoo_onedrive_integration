@@ -48,8 +48,7 @@
         <field name="name">Cuentas OneDrive</field>
         <field name="res_model">onedrive.account</field>
         <field name="view_mode">kanban,list,form</field>
-        <field name="search_view_id" ref="view_onedrive_account_search"/>
-        <field name="context">{}</field>
+        
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Crea una cuenta de conexión con Microsoft OneDrive.
