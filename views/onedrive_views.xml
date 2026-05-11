@@ -324,13 +324,16 @@
                         <page string="Tokens" groups="base.group_system">
                             <group>
                                 <field name="access_token"
-                                    readonly="1"
-                                    password="True"/>
+                                       readonly="1"
+                                       password="True"/>
                                 <field name="refresh_token"
-                                    readonly="1"
-                                    password="True"/>
+                                       readonly="1"
+                                       password="True"/>
                                 <field name="token_expiry"
-                                    readonly="1"/>
+                                       readonly="1"/>
+                                <field name="oauth_state"
+                                       readonly="1"
+                                       password="True"/>
                             </group>
                         </page>
 
