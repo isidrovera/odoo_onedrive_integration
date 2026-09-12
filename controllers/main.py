@@ -1,278 +1,191 @@
-# controllers/onedrive_controller.py
-import logging
+# -*- coding: utf-8 -*-
 import json
+import logging
+from urllib.parse import quote as url_quote
+
 import requests as http_requests
-from werkzeug.urls import url_quote
 
 from odoo import http
-from odoo.http import request, Response
 from odoo.exceptions import UserError
-from odoo.addons.odoo_onedrive_integration.services.graph_service import GraphService
+from odoo.http import Response, request
+
+from ..services.drive_service import DriveService
 
 _logger = logging.getLogger(__name__)
 
 
-class OneDriveController(http.Controller):
+class MicrosoftDocumentsController(http.Controller):
 
-    # ---------------------------------------
-    # AUTH
-    # ---------------------------------------
-    @http.route('/onedrive/login/<int:account_id>', type='http', auth='user')
-    def onedrive_login(self, account_id):
-        account = request.env['onedrive.account'].sudo().browse(account_id)
-        return request.redirect(account.get_auth_url())
+    def _location(self, location_id=None):
+        if not location_id:
+            location = request.env["microsoft.storage.location"].search([], limit=1)
+        else:
+            try:
+                location = request.env["microsoft.storage.location"].browse(int(location_id)).exists()
+            except (TypeError, ValueError):
+                location = request.env["microsoft.storage.location"]
+        if not location:
+            raise UserError("No existe una ubicación documental autorizada.")
+        return location
 
-    @http.route('/onedrive/callback', type='http', auth='user')
-    def onedrive_callback(self, **kwargs):
-        code = kwargs.get("code")
-        account = request.env['onedrive.account'].sudo().search([], limit=1)
-        try:
-            account.exchange_code_for_token(code)
-        except Exception as e:
-            return f"<h2>❌ Error: {str(e)}</h2>"
-        return """
-        <html><body style="font-family:sans-serif;text-align:center;padding:50px;">
-            <h1 style="color:#28a745;">✔ Conectado correctamente</h1>
-            <p>Ya puedes cerrar esta ventana y volver a Odoo.</p>
-            <script>setTimeout(()=>window.close(), 2000);</script>
-        </body></html>
-        """
+    def _service(self, operation, location_id=None):
+        location = self._location(location_id)
+        location.check_operation(operation, request.env.user)
+        return location, DriveService(location, request.env.user)
 
-    # ---------------------------------------
-    # ACCOUNTS
-    # ---------------------------------------
-    @http.route('/onedrive/accounts', type='json', auth='user')
-    def get_accounts(self):
-        accounts = request.env['onedrive.account'].sudo().search([('active', '=', True)])
-        return [{
-            'id': a.id,
-            'name': a.name,
-            'connected': bool(a.access_token),
-        } for a in accounts]
+    def _audit(self, operation, location, status="success", **values):
+        request.env["microsoft.audit.log"]._log(
+            operation, status=status, tenant_id=location.tenant_id.id, location_id=location.id, **values
+        )
 
-    # ---------------------------------------
-    # LIST
-    # ---------------------------------------
-    @http.route('/onedrive/list', type='json', auth='user')
-    def list_files(self, parent_id=None, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        if parent_id:
-            return service.list_children(parent_id)
-        return service.list_root()
+    @http.route("/microsoft/locations", type="jsonrpc", auth="user")
+    def locations(self):
+        result = []
+        for location in request.env["microsoft.storage.location"].search([("active", "=", True)]):
+            role = location.access_level(request.env.user)
+            result.append({
+                "id": location.id,
+                "name": location.name,
+                "type": location.location_type,
+                "site_name": location.site_id.name or "",
+                "library_name": location.library_id.name or "",
+                "web_url": location.web_url or location.library_id.web_url or location.site_id.web_url or "",
+                "role": role,
+                "can_edit": role in ("editor", "manager"),
+                "can_manage": role == "manager",
+            })
+        return result
 
-    # ---------------------------------------
-    # SEARCH
-    # ---------------------------------------
-    @http.route('/onedrive/search', type='json', auth='user')
-    def search_files(self, query, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        return service.search(query)
+    @http.route("/microsoft/list", type="jsonrpc", auth="user")
+    def list_files(self, parent_id=None, location_id=None):
+        location, service = self._service("list", location_id)
+        result = service.list_children(parent_id) if parent_id else service.list_root()
+        self._audit("list", location, item_id=parent_id)
+        return result
 
-    # ---------------------------------------
-    # GET ITEM
-    # ---------------------------------------
-    @http.route('/onedrive/item', type='json', auth='user')
-    def get_item(self, item_id, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
+    @http.route("/microsoft/search", type="jsonrpc", auth="user")
+    def search_files(self, query, location_id=None):
+        location, service = self._service("search", location_id)
+        result = service.search(query)
+        self._audit("search", location, message=query)
+        return result
+
+    @http.route("/microsoft/item", type="jsonrpc", auth="user")
+    def get_item(self, item_id, location_id=None):
+        _location, service = self._service("properties", location_id)
         return service.get_item(item_id)
 
-    # ---------------------------------------
-    # CREATE FOLDER
-    # ---------------------------------------
-    @http.route('/onedrive/create_folder', type='json', auth='user')
-    def create_folder(self, name, parent_id=None, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        return service.create_folder(name, parent_id)
+    @http.route("/microsoft/create_folder", type="jsonrpc", auth="user")
+    def create_folder(self, name, parent_id=None, location_id=None):
+        location, service = self._service("create_folder", location_id)
+        result = service.create_folder(name, parent_id)
+        self._audit("create_folder", location, item_id=result.get("id"), item_name=result.get("name"))
+        return result
 
-    # ---------------------------------------
-    # RENAME
-    # ---------------------------------------
-    @http.route('/onedrive/rename', type='json', auth='user')
-    def rename_item(self, item_id, new_name, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        return service.rename_item(item_id, new_name)
+    @http.route("/microsoft/rename", type="jsonrpc", auth="user")
+    def rename_item(self, item_id, new_name, location_id=None):
+        location, service = self._service("rename", location_id)
+        result = service.rename_item(item_id, new_name)
+        self._audit("rename", location, item_id=item_id, item_name=new_name)
+        return result
 
-    # ---------------------------------------
-    # MOVE
-    # ---------------------------------------
-    @http.route('/onedrive/move', type='json', auth='user')
-    def move_item(self, item_id, target_parent_id, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        return service.move_item(item_id, target_parent_id)
+    @http.route("/microsoft/move", type="jsonrpc", auth="user")
+    def move_item(self, item_id, target_parent_id, location_id=None):
+        location, service = self._service("move", location_id)
+        result = service.move_item(item_id, target_parent_id)
+        self._audit("move", location, item_id=item_id)
+        return result
 
-    # ---------------------------------------
-    # COPY
-    # ---------------------------------------
-    @http.route('/onedrive/copy', type='json', auth='user')
-    def copy_item(self, item_id, target_parent_id, new_name=None, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        return service.copy_item(item_id, target_parent_id, new_name)
+    @http.route("/microsoft/copy", type="jsonrpc", auth="user")
+    def copy_item(self, item_id, target_parent_id, new_name=None, location_id=None):
+        location, service = self._service("copy", location_id)
+        result = service.copy_item(item_id, target_parent_id, new_name)
+        self._audit("copy", location, item_id=item_id, item_name=new_name)
+        return result
 
-    # ---------------------------------------
-    # DELETE
-    # ---------------------------------------
-    @http.route('/onedrive/delete', type='json', auth='user')
-    def delete_item(self, item_id, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
+    @http.route("/microsoft/delete", type="jsonrpc", auth="user")
+    def delete_item(self, item_id, location_id=None):
+        location, service = self._service("delete", location_id)
+        item = service.get_item(item_id)
         service.delete_item(item_id)
+        self._audit("delete", location, item_id=item_id, item_name=item.get("name"))
         return {"status": "deleted"}
 
-    # ---------------------------------------
-    # SHARE
-    # ---------------------------------------
-    @http.route('/onedrive/share', type='json', auth='user')
-    def share_item(self, item_id, share_type='view', scope='anonymous', account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        return service.create_share_link(item_id, share_type, scope)
+    @http.route("/microsoft/share", type="jsonrpc", auth="user")
+    def share_item(self, item_id, share_type="view", scope="organization", location_id=None):
+        location, service = self._service("share", location_id)
+        result = service.create_share_link(item_id, share_type, scope)
+        self._audit("share", location, item_id=item_id, message=f"{share_type}/{scope}")
+        return result
 
-    # ---------------------------------------
-    # THUMBNAIL (streaming en vez de redirect)
-    # ---------------------------------------
-    @http.route('/onedrive/thumbnail/<string:item_id>', type='http', auth='user')
-    def get_thumbnail(self, item_id, size='medium', account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
+    @http.route("/microsoft/preview", type="jsonrpc", auth="user")
+    def preview_item(self, item_id, location_id=None):
+        _location, service = self._service("preview", location_id)
+        return service.get_preview_url(item_id)
+
+    @http.route("/microsoft/thumbnail/<string:item_id>", type="http", auth="user")
+    def thumbnail(self, item_id, size="medium", location_id=None):
         try:
+            _location, service = self._service("preview", location_id)
             url = service.get_thumbnail_url(item_id, size)
             if not url:
                 return Response(status=404)
-            r = http_requests.get(url, stream=True, timeout=30)
-            if r.status_code >= 400:
-                return Response(status=r.status_code)
-            return request.make_response(
-                r.content,
-                headers=[
-                    ('Content-Type', r.headers.get('Content-Type', 'image/jpeg')),
-                    ('Cache-Control', 'public, max-age=3600'),
-                ],
-            )
-        except Exception as e:
-            _logger.warning("Thumbnail error: %s", e)
+            remote = http_requests.get(url, timeout=30)
+            if remote.status_code >= 400:
+                return Response(status=remote.status_code)
+            return request.make_response(remote.content, headers=[
+                ("Content-Type", remote.headers.get("Content-Type", "image/jpeg")),
+                ("Cache-Control", "private, max-age=900"),
+            ])
+        except Exception:
             return Response(status=404)
 
-    # ---------------------------------------
-    # PREVIEW (embed)
-    # ---------------------------------------
-    @http.route('/onedrive/preview', type='json', auth='user')
-    def preview_item(self, item_id, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        return service.get_preview_url(item_id)
-
-    # ---------------------------------------
-    # DOWNLOAD FILE (streaming directo, sin redirect)
-    # ---------------------------------------
-    @http.route('/onedrive/download/<string:item_id>', type='http', auth='user')
-    def download_file(self, item_id, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
+    @http.route("/microsoft/download/<string:item_id>", type="http", auth="user")
+    def download_file(self, item_id, location_id=None):
         try:
-            item = service.get_item(item_id)
-            if "folder" in item:
-                return request.make_response("Use download_folder para carpetas", status=400)
-
-            download_url = item.get("@microsoft.graph.downloadUrl")
-            filename = item.get("name", "download")
-            if not download_url:
-                return request.make_response("Archivo no descargable", status=404)
-
-            r = http_requests.get(download_url, stream=True, timeout=120)
-            if r.status_code >= 400:
-                return request.make_response(f"Error Microsoft: {r.status_code}", status=r.status_code)
+            location, service = self._service("download", location_id)
+            download_url, item = service.get_download_url(item_id)
+            remote = http_requests.get(download_url, stream=True, timeout=120)
+            if remote.status_code >= 400:
+                return request.make_response("Microsoft rechazó la descarga.", status=remote.status_code)
 
             def generate():
-                for chunk in r.iter_content(chunk_size=8192):
-                    if chunk:
-                        yield chunk
+                try:
+                    for chunk in remote.iter_content(chunk_size=64 * 1024):
+                        if chunk:
+                            yield chunk
+                finally:
+                    remote.close()
 
-            safe_filename = url_quote(filename)
+            self._audit("download", location, item_id=item_id, item_name=item.get("name"))
             headers = [
-                ('Content-Type', r.headers.get('Content-Type', 'application/octet-stream')),
-                ('Content-Disposition', f"attachment; filename*=UTF-8''{safe_filename}"),
-                ('Cache-Control', 'no-cache'),
-            ]
-            cl = r.headers.get('Content-Length')
-            if cl:
-                headers.append(('Content-Length', cl))
-
-            return request.make_response(generate(), headers=headers)
-
-        except Exception as e:
-            _logger.exception("Download error")
-            return request.make_response(f"Error: {str(e)}", status=500)
-
-    # ---------------------------------------
-    # DOWNLOAD FOLDER (streaming zip desde Graph)
-    # ---------------------------------------
-    @http.route('/onedrive/download_folder/<string:item_id>', type='http', auth='user')
-    def download_folder(self, item_id, account_id=None):
-        account = self._get_account(account_id)
-        service = GraphService(account)
-        try:
-            item = service.get_item(item_id)
-            folder_name = item.get("name", "folder")
-            token = account.get_valid_token()
-            url = f"{service.base_url}/me/drive/items/{item_id}/content"
-
-            r = http_requests.get(
-                url,
-                headers={"Authorization": f"Bearer {token}"},
-                stream=True,
-                timeout=300,
-                allow_redirects=True,
-            )
-            if r.status_code >= 400:
-                return request.make_response(f"Error: {r.status_code}", status=r.status_code)
-
-            def generate():
-                for chunk in r.iter_content(chunk_size=8192):
-                    if chunk:
-                        yield chunk
-
-            safe_filename = url_quote(f"{folder_name}.zip")
-            headers = [
-                ('Content-Type', 'application/zip'),
-                ('Content-Disposition', f"attachment; filename*=UTF-8''{safe_filename}"),
-                ('Cache-Control', 'no-cache'),
+                ("Content-Type", remote.headers.get("Content-Type", "application/octet-stream")),
+                ("Content-Disposition", f"attachment; filename*=UTF-8''{url_quote(item.get('name', 'download'))}"),
+                ("Cache-Control", "no-store"),
             ]
             return request.make_response(generate(), headers=headers)
+        except Exception as error:
+            _logger.exception("Error descargando documento Microsoft")
+            return request.make_response(str(error), status=500)
 
-        except Exception as e:
-            _logger.exception("Download folder error")
-            return request.make_response(f"Error: {str(e)}", status=500)
-
-    # ---------------------------------------
-    # UPLOAD
-    # ---------------------------------------
-    @http.route('/onedrive/upload', type='http', auth='user', methods=['POST'], csrf=False)
+    @http.route("/microsoft/upload", type="http", auth="user", methods=["POST"], csrf=True)
     def upload_file(self, **post):
+        location = None
         try:
-            file = post.get('file')
-            account_id = post.get('account_id')
-            parent_id = post.get('parent_id') or None
-            account = self._get_account(account_id)
-            service = GraphService(account)
-            result = service.upload_file(file.filename, file.read(), parent_id)
-            return Response(json.dumps({"status": "ok", "item": result}),
-                            content_type='application/json')
-        except Exception as e:
-            _logger.exception("Upload error")
-            return Response(json.dumps({"status": "error", "message": str(e)}),
-                            content_type='application/json', status=500)
-
-    # ---------------------------------------
-    # HELPER
-    # ---------------------------------------
-    def _get_account(self, account_id):
-        if account_id:
-            return request.env['onedrive.account'].sudo().browse(int(account_id))
-        return request.env['onedrive.account'].sudo().search([], limit=1)
+            uploaded = post.get("file")
+            if not uploaded or not uploaded.filename:
+                return Response(json.dumps({"status": "error", "message": "No se recibió archivo."}), status=400, content_type="application/json")
+            location, service = self._service("upload", post.get("location_id"))
+            parent_id = post.get("parent_id") or None
+            stream = uploaded.stream
+            stream.seek(0, 2)
+            size = stream.tell()
+            stream.seek(0)
+            result = service.upload_stream(uploaded.filename, stream, size, parent_id)
+            self._audit("upload", location, item_id=result.get("id"), item_name=result.get("name") or uploaded.filename)
+            return Response(json.dumps({"status": "ok", "item": result}), content_type="application/json")
+        except Exception as error:
+            _logger.exception("Error subiendo documento Microsoft")
+            if location:
+                self._audit("upload", location, status="error", message=str(error))
+            return Response(json.dumps({"status": "error", "message": str(error)}), status=500, content_type="application/json")

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sharepoint_site_list" model="ir.ui.view">
+        <field name="name">sharepoint.site.list</field>
+        <field name="model">sharepoint.site</field>
+        <field name="arch" type="xml">
+            <list decoration-success="status == 'ready'" decoration-warning="status == 'provisioning'" decoration-danger="status == 'error'">
+                <field name="name"/>
+                <field name="tenant_id"/>
+                <field name="site_type" widget="badge"/>
+                <field name="web_url" widget="url"/>
+                <field name="primary_group_id"/>
+                <field name="status" widget="badge"/>
+                <field name="last_sync"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sharepoint_site_form" model="ir.ui.view">
+        <field name="name">sharepoint.site.form</field>
+        <field name="model">sharepoint.site</field>
+        <field name="arch" type="xml">
+            <form string="Sitio SharePoint">
+                <header>
+                    <button name="action_create_remote" type="object" string="Crear sitio" class="btn-primary" invisible="graph_id"/>
+                    <button name="action_sync" type="object" string="Comprobar / sincronizar" class="btn-secondary"/>
+                    <button name="action_sync_libraries" type="object" string="Sincronizar bibliotecas" class="btn-secondary" invisible="not graph_id"/>
+                    <button name="action_apply_group_access" type="object" string="Aplicar accesos" class="btn-primary" invisible="not graph_id"/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,provisioning,ready,error"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="tenant_id" readonly="graph_id"/>
+                            <field name="site_type" readonly="graph_id"/>
+                            <field name="primary_group_id" invisible="site_type != 'team_group'" domain="[('tenant_id', '=', tenant_id), ('group_type', '=', 'microsoft365')]"/>
+                            <field name="url_slug" invisible="site_type in ('existing', 'team_group')"/>
+                            <field name="owner_email" invisible="site_type in ('existing', 'team_group')"/>
+                            <field name="locale_id" invisible="site_type in ('existing', 'team_group')"/>
+                        </group>
+                        <group>
+                            <field name="graph_id" readonly="1"/>
+                            <field name="web_url" widget="url" readonly="1"/>
+                            <field name="last_sync" readonly="1"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <field name="description"/>
+                    <notebook>
+                        <page string="Accesos">
+                            <group>
+                                <field name="reader_group_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]"/>
+                                <field name="editor_group_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]"/>
+                            </group>
+                        </page>
+                        <page string="Bibliotecas">
+                            <field name="library_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="drive_id" readonly="1"/>
+                                    <field name="web_url" widget="url" readonly="1"/>
+                                    <field name="last_sync" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Diagnóstico"><field name="last_error" readonly="1"/></page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sharepoint_sites" model="ir.actions.act_window">
+        <field name="name">Sitios SharePoint</field>
+        <field name="res_model">sharepoint.site</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_sharepoint_library_list" model="ir.ui.view">
+        <field name="name">sharepoint.library.list</field>
+        <field name="model">sharepoint.library</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="site_id"/>
+                <field name="tenant_id"/>
+                <field name="drive_id" optional="show"/>
+                <field name="web_url" widget="url"/>
+                <field name="last_sync"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sharepoint_library_form" model="ir.ui.view">
+        <field name="name">sharepoint.library.form</field>
+        <field name="model">sharepoint.library</field>
+        <field name="arch" type="xml">
+            <form string="Biblioteca SharePoint">
+                <header>
+                    <button name="action_create_remote" type="object" string="Crear en SharePoint" class="btn-primary" invisible="drive_id"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="site_id" readonly="drive_id"/>
+                            <field name="tenant_id" readonly="1"/>
+                            <field name="description"/>
+                        </group>
+                        <group>
+                            <field name="drive_id" readonly="1"/>
+                            <field name="list_id" readonly="1"/>
+                            <field name="web_url" widget="url" readonly="1"/>
+                            <field name="last_sync" readonly="1"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sharepoint_libraries" model="ir.actions.act_window">
+        <field name="name">Bibliotecas SharePoint</field>
+        <field name="res_model">sharepoint.library</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

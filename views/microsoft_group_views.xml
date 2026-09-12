@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_microsoft_group_list" model="ir.ui.view">
+        <field name="name">microsoft.group.list</field>
+        <field name="model">microsoft.group</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="group_type == 'readonly'">
+                <field name="name"/>
+                <field name="tenant_id"/>
+                <field name="group_type" widget="badge"/>
+                <field name="mail"/>
+                <field name="visibility"/>
+                <field name="member_count"/>
+                <field name="owner_count"/>
+                <field name="last_sync"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_microsoft_group_form" model="ir.ui.view">
+        <field name="name">microsoft.group.form</field>
+        <field name="model">microsoft.group</field>
+        <field name="arch" type="xml">
+            <form string="Grupo Microsoft">
+                <header>
+                    <button name="action_create_remote" type="object" string="Crear en Microsoft" class="btn-primary" invisible="graph_id"/>
+                    <button name="action_update_remote" type="object" string="Actualizar Microsoft" class="btn-secondary" invisible="not graph_id or group_type == 'readonly'"/>
+                    <button name="action_apply_members" type="object" string="Aplicar membresía" class="btn-primary" invisible="not graph_id or group_type == 'readonly'"/>
+                    <button name="action_sync_members" type="object" string="Leer miembros" class="btn-secondary" invisible="not graph_id"/>
+                    <button name="action_delete_remote" type="object" string="Eliminar de Microsoft" class="btn-secondary" invisible="not graph_id or group_type == 'readonly'" confirm="Esta acción elimina el grupo remoto. ¿Continuar?"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="tenant_id" readonly="graph_id"/>
+                            <field name="group_type" readonly="graph_id"/>
+                            <field name="mail_nickname" readonly="graph_id"/>
+                            <field name="visibility"/>
+                        </group>
+                        <group>
+                            <field name="graph_id" readonly="1"/>
+                            <field name="mail" readonly="1"/>
+                            <field name="last_sync" readonly="1"/>
+                            <field name="authoritative_membership"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="Descripción del grupo"/>
+                    <notebook>
+                        <page string="Miembros" name="members">
+                            <field name="member_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]"/>
+                        </page>
+                        <page string="Propietarios" name="owners">
+                            <field name="owner_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]"/>
+                        </page>
+                        <page string="Diagnóstico"><field name="last_error" readonly="1"/></page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_microsoft_groups" model="ir.actions.act_window">
+        <field name="name">Grupos Microsoft</field>
+        <field name="res_model">microsoft.group</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

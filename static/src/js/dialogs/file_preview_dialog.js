@@ -11,10 +11,11 @@ export class FilePreviewDialog extends Component {
     static props = {
         close: Function,
         file: Object,
-        accountId: { type: [Number, Boolean], optional: true },
+        locationId: { type: [Number, Boolean], optional: true },
         onDownload: { type: Function, optional: true },
         onShare: { type: Function, optional: true },
         onDelete: { type: Function, optional: true },
+        onOpenExternal: { type: Function, optional: true },
     };
 
     setup() {
@@ -30,11 +31,11 @@ export class FilePreviewDialog extends Component {
         onWillStart(async () => {
             try {
                 if (isImage(this.props.file)) {
-                    this.state.previewUrl = `/onedrive/thumbnail/${this.props.file.id}?size=large`;
+                    this.state.previewUrl = `/microsoft/thumbnail/${this.props.file.id}?size=large&location_id=${this.props.locationId}`;
                 } else {
-                    const res = await rpc("/onedrive/preview", {
+                    const res = await rpc("/microsoft/preview", {
                         item_id: this.props.file.id,
-                        account_id: this.props.accountId,
+                        location_id: this.props.locationId,
                     });
                     this.state.previewUrl = res.getUrl || res.postUrl || null;
                 }
@@ -49,5 +50,6 @@ export class FilePreviewDialog extends Component {
     download() { this.props.onDownload?.(); }
     share() { this.props.close(); this.props.onShare?.(); }
     remove() { this.props.close(); this.props.onDelete?.(); }
+    openExternal() { this.props.onOpenExternal?.(); }
     closeDialog() { this.props.close(); }
 }

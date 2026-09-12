@@ -11,14 +11,14 @@ export class ShareDialog extends Component {
     static props = {
         close: Function,
         file: Object,
-        accountId: { type: [Number, Boolean], optional: true },
+        locationId: { type: [Number, Boolean], optional: true },
     };
 
     setup() {
         this.notification = useService("notification");
         this.state = useState({
             shareType: "view", // view | edit
-            scope: "anonymous", // anonymous | organization
+            scope: "organization", // anonymous | organization
             link: null,
             loading: false,
         });
@@ -27,11 +27,11 @@ export class ShareDialog extends Component {
     async generate() {
         this.state.loading = true;
         try {
-            const res = await rpc("/onedrive/share", {
+            const res = await rpc("/microsoft/share", {
                 item_id: this.props.file.id,
                 share_type: this.state.shareType,
                 scope: this.state.scope,
-                account_id: this.props.accountId,
+                location_id: this.props.locationId,
             });
             this.state.link = res?.link?.webUrl || null;
         } catch (e) {

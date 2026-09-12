@@ -11,7 +11,16 @@
         <div class="od_topbar">
             <div class="od_logo">
                 <i class="bi bi-cloud-fill"/>
-                <span>OneDrive</span>
+                <span>Microsoft 365</span>
+            </div>
+            <div class="od_location_selector">
+                <select class="form-select form-select-sm" t-on-change="onLocationChange" t-att-value="state.locationId or ''">
+                    <t t-foreach="state.locations" t-as="location" t-key="location.id">
+                        <option t-att-value="location.id" t-att-selected="location.id === state.locationId">
+                            <t t-esc="location.name"/>
+                        </option>
+                    </t>
+                </select>
             </div>
             <div class="od_topbar_center">
                 <div class="od_searchbox">
@@ -20,7 +29,7 @@
                            t-att-value="state.search"
                            t-on-input="onSearchInput"
                            t-on-keydown="onSearchSubmit"
-                           placeholder="Buscar en OneDrive..."/>
+                           placeholder="Buscar en la ubicación actual..."/>
                     <button t-if="state.search" class="btn btn-sm btn-link p-0" t-on-click="() => this.clearSearch()">
                         <i class="bi bi-x-lg"/>
                     </button>
@@ -36,7 +45,7 @@
         <!-- TOOLBAR -->
         <div class="od_toolbar">
             <div class="od_toolbar_actions">
-                <t t-if="!selectorMode">
+                <t t-if="!selectorMode and canEdit()">
                     <button class="btn btn-primary btn-sm" t-on-click="() => this.triggerUpload()">
                         <i class="bi bi-cloud-upload"/> Subir
                     </button>
@@ -52,7 +61,7 @@
                     <span class="od_selcount">
                         <i class="bi bi-check-circle-fill"/> <t t-esc="state.selected.size"/> seleccionados
                     </span>
-                    <button t-if="!selectorMode" class="btn btn-danger btn-sm" t-on-click="() => this.deleteSelected()">
+                    <button t-if="!selectorMode and canManage()" class="btn btn-danger btn-sm" t-on-click="() => this.deleteSelected()">
                         <i class="bi bi-trash"/> Eliminar
                     </button>
                 </t>
@@ -76,7 +85,7 @@
                 <i class="bi bi-arrow-up"/>
             </button>
             <span class="od_crumb" t-on-click="() => this.goRoot()">
-                <i class="bi bi-house-door-fill"/> Mi unidad
+                <i class="bi bi-house-door-fill"/> <t t-esc="(state.currentLocation and state.currentLocation.name) or 'Ubicación'"/>
             </span>
             <t t-foreach="state.path" t-as="p" t-key="p.id">
                 <span class="od_crumb_sep">/</span>
@@ -118,7 +127,12 @@
         </div>
 
         <!-- EMPTY -->
-        <div t-if="!state.loading and state.filteredFiles.length === 0" class="od_empty">
+        <div t-if="!state.loading and state.locations.length === 0" class="od_empty">
+            <i class="bi bi-shield-lock"/>
+            <h3>No tienes ubicaciones documentales asignadas</h3>
+            <p>Solicita acceso al administrador Microsoft 365.</p>
+        </div>
+        <div t-elif="!state.loading and state.filteredFiles.length === 0" class="od_empty">
             <i class="bi bi-folder2-open"/>
             <h3 t-if="state.searching">No hay resultados para "<t t-esc="state.search"/>"</h3>
             <h3 t-else="">Esta carpeta está vacía</h3>
@@ -165,7 +179,7 @@
                         <button class="btn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
                             <i class="bi bi-eye"/>
                         </button>
-                        <button class="btn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
+                        <button t-if="!file.folder" class="btn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
                             <i class="bi bi-download"/>
                         </button>
                         <button class="btn" t-on-click.stop="(ev) => this.openCtxMenu(file, ev)" title="Más">
@@ -226,7 +240,7 @@
                         <button class="btn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
                             <i class="bi bi-download"/>
                         </button>
-                        <button class="btn" t-on-click.stop="() => this.shareItem(file)" title="Compartir">
+                        <button t-if="canManage()" class="btn" t-on-click.stop="() => this.shareItem(file)" title="Compartir">
                             <i class="bi bi-share"/>
                         </button>
                         <button class="btn" t-on-click.stop="(ev) => this.openCtxMenu(file, ev)" title="Más">
@@ -243,13 +257,13 @@
             <button class="btn" t-on-click="() => this.previewFile(state.ctxMenu.file)">
                 <i class="bi bi-eye"/> Vista previa
             </button>
-            <button t-if="!selectorMode" class="btn" t-on-click="() => this.downloadItem(state.ctxMenu.file)">
+            <button t-if="!selectorMode and !state.ctxMenu.file.folder" class="btn" t-on-click="() => this.downloadItem(state.ctxMenu.file)">
                 <i class="bi bi-download"/> Descargar
             </button>
-            <button t-if="!selectorMode" class="btn" t-on-click="() => this.shareItem(state.ctxMenu.file)">
+            <button t-if="!selectorMode and canManage()" class="btn" t-on-click="() => this.shareItem(state.ctxMenu.file)">
                 <i class="bi bi-share"/> Compartir
             </button>
-            <t t-if="!selectorMode">
+            <t t-if="!selectorMode and canEdit()">
                 <div class="od_ctxsep"/>
                 <button class="btn" t-on-click="() => this.renameItem(state.ctxMenu.file)">
                     <i class="bi bi-pencil"/> Renombrar
@@ -258,7 +272,7 @@
             <button class="btn" t-on-click="() => this.showProperties(state.ctxMenu.file)">
                 <i class="bi bi-info-circle"/> Propiedades
             </button>
-            <t t-if="!selectorMode">
+            <t t-if="!selectorMode and canManage()">
                 <div class="od_ctxsep"/>
                 <button class="btn danger" t-on-click="() => this.deleteItem(state.ctxMenu.file)">
                     <i class="bi bi-trash"/> Eliminar
@@ -352,14 +366,17 @@
             </div>
         </div>
         <t t-set-slot="footer">
-            <button class="btn btn-danger" t-on-click="() => this.remove()">
+            <button t-if="props.onDelete" class="btn btn-danger" t-on-click="() => this.remove()">
                 <i class="bi bi-trash"/> Eliminar
             </button>
-            <button class="btn btn-light" t-on-click="() => this.share()">
+            <button t-if="props.onShare" class="btn btn-light" t-on-click="() => this.share()">
                 <i class="bi bi-share"/> Compartir
             </button>
             <button class="btn btn-primary" t-on-click="() => this.download()">
                 <i class="bi bi-download"/> Descargar
+            </button>
+            <button t-if="props.onOpenExternal" class="btn btn-primary" t-on-click="() => this.openExternal()">
+                <i class="bi bi-box-arrow-up-right"/> Abrir en Microsoft 365
             </button>
         </t>
     </Dialog>
@@ -394,7 +411,7 @@
                     <input type="radio" name="scope" value="anonymous"
                            t-att-checked="state.scope === 'anonymous'"
                            t-on-change="() => state.scope = 'anonymous'"/>
-                    <span><i class="bi bi-globe"/> Cualquiera con el enlace</span>
+                    <span><i class="bi bi-globe"/> Cualquiera con el enlace (no recomendado)</span>
                 </label>
                 <label class="od_radio">
                     <input type="radio" name="scope" value="organization"
@@ -457,7 +474,7 @@
                 </tr>
                 <tr t-if="props.file.webUrl">
                     <th>URL</th>
-                    <td><a t-att-href="props.file.webUrl" target="_blank">Abrir en OneDrive</a></td>
+                    <td><a t-att-href="props.file.webUrl" target="_blank">Abrir en Microsoft 365</a></td>
                 </tr>
             </table>
         </div>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="rule_microsoft_connection_own" model="ir.rule">
+        <field name="name">Conexiones Microsoft propias</field>
+        <field name="model_id" ref="model_microsoft_user_connection"/>
+        <field name="groups" eval="[(4, ref('group_microsoft_document_user'))]"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_microsoft_connection_admin" model="ir.rule">
+        <field name="name">Conexiones Microsoft administración</field>
+        <field name="model_id" ref="model_microsoft_user_connection"/>
+        <field name="groups" eval="[(4, ref('group_microsoft_admin'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+
+    <record id="rule_microsoft_location_allowed" model="ir.rule">
+        <field name="name">Ubicaciones Microsoft autorizadas</field>
+        <field name="model_id" ref="model_microsoft_storage_location"/>
+        <field name="groups" eval="[(4, ref('group_microsoft_document_user'))]"/>
+        <field name="domain_force">['|', '|', ('reader_user_ids', 'in', user.id), ('editor_user_ids', 'in', user.id), ('manager_user_ids', 'in', user.id)]</field>
+    </record>
+    <record id="rule_microsoft_location_admin" model="ir.rule">
+        <field name="name">Ubicaciones Microsoft administración</field>
+        <field name="model_id" ref="model_microsoft_storage_location"/>
+        <field name="groups" eval="[(4, ref('group_microsoft_admin'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+
+    <record id="rule_microsoft_audit_own" model="ir.rule">
+        <field name="name">Auditoría Microsoft propia</field>
+        <field name="model_id" ref="model_microsoft_audit_log"/>
+        <field name="groups" eval="[(4, ref('group_microsoft_document_user'))]"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_microsoft_audit_manager" model="ir.rule">
+        <field name="name">Auditoría Microsoft completa</field>
+        <field name="model_id" ref="model_microsoft_audit_log"/>
+        <field name="groups" eval="[(4, ref('group_microsoft_document_manager'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>

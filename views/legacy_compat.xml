@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Conserva los XML ID de la versión 1.0 durante una actualización. -->
+    <record id="action_onedrive_app" model="ir.actions.client">
+        <field name="name">Documentos Microsoft 365</field>
+        <field name="tag">onedrive_app</field>
+    </record>
+
+    <record id="action_onedrive_account" model="ir.actions.act_window">
+        <field name="name">Configuración Microsoft 365</field>
+        <field name="res_model">onedrive.account</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_microsoft_tenant_list"/>
+    </record>
+
+    <!-- La versión anterior daba CRUD de credenciales a todo usuario interno. -->
+    <record id="access_onedrive_account_user" model="ir.model.access">
+        <field name="name">OneDrive ACL anterior deshabilitada</field>
+        <field name="model_id" ref="model_onedrive_account"/>
+        <field name="group_id" ref="base.group_user"/>
+        <field name="perm_read">False</field>
+        <field name="perm_write">False</field>
+        <field name="perm_create">False</field>
+        <field name="perm_unlink">False</field>
+        <field name="active">False</field>
+    </record>
+
+    <menuitem id="menu_onedrive_root" name="OneDrive (anterior)" active="False"/>
+    <menuitem id="menu_onedrive_app" name="Mis archivos" parent="menu_onedrive_root"
+              action="action_onedrive_app" active="False"/>
+    <menuitem id="menu_onedrive_config" name="Configuración" parent="menu_onedrive_root"
+              active="False"/>
+    <menuitem id="menu_onedrive_accounts" name="Cuentas" parent="menu_onedrive_config"
+              action="action_onedrive_account" active="False"/>
+</odoo>

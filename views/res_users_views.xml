@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_users_form_microsoft_365" model="ir.ui.view">
+        <field name="name">res.users.form.microsoft.365</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Microsoft 365" groups="odoo_onedrive_integration.group_microsoft_admin">
+                    <group>
+                        <group string="Acceso">
+                            <field name="microsoft_access_enabled"/>
+                            <field name="microsoft_tenant_id" required="microsoft_access_enabled"/>
+                            <field name="microsoft_access_role" required="microsoft_access_enabled"/>
+                        </group>
+                        <group string="Operaciones">
+                            <button name="action_provision_microsoft" type="object" string="Registrar y aplicar accesos" class="btn-primary" invisible="not microsoft_access_enabled"/>
+                        </group>
+                    </group>
+                    <group string="Asignaciones">
+                        <field name="microsoft_group_ids" widget="many2many_tags" domain="[('tenant_id', '=', microsoft_tenant_id)]"/>
+                        <field name="microsoft_location_ids" widget="many2many_tags" domain="[('tenant_id', '=', microsoft_tenant_id)]"/>
+                    </group>
+                    <notebook>
+                        <page string="Invitados"><field name="microsoft_guest_ids" readonly="1"/></page>
+                        <page string="Conexiones"><field name="microsoft_connection_ids" readonly="1"/></page>
+                    </notebook>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

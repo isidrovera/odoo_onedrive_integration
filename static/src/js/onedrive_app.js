@@ -1,5 +1,5 @@
 /** @odoo-module **/
-import { Component, useState, useRef, onWillStart, onMounted } from "@odoo/owl";
+import { Component, useState, useRef, onWillStart, onMounted, onWillUnmount } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { rpc } from "@web/core/network/rpc";
 import { useService } from "@web/core/utils/hooks";
@@ -34,8 +34,9 @@ export class OneDriveApp extends Component {
             searching: false,
             selected: new Set(),
             uploadProgress: null,
-            accounts: [],
-            accountId: null,
+            locations: [],
+            locationId: null,
+            currentLocation: null,
             ctxMenu: { open: false, x: 0, y: 0, file: null },
             dragOver: false,
         });
@@ -68,43 +69,76 @@ export class OneDriveApp extends Component {
         this._selectedCache = new Map();
 
         onWillStart(async () => {
-            await this.loadAccounts();
-            await this.loadFiles();
+            await this.loadLocations();
+            if (this.state.locationId) await this.loadFiles();
         });
 
         onMounted(() => {
             document.addEventListener("click", this._onDocClick);
             document.addEventListener("keydown", this._onDocKey);
         });
+        onWillUnmount(() => {
+            document.removeEventListener("click", this._onDocClick);
+            document.removeEventListener("keydown", this._onDocKey);
+            if (this._searchDebounce) clearTimeout(this._searchDebounce);
+        });
     }
 
     // =========================================================
-    // ACCOUNTS
+    // UBICACIONES: OneDrive y bibliotecas SharePoint autorizadas
     // =========================================================
-    async loadAccounts() {
+    async loadLocations() {
         try {
-            const res = await rpc("/onedrive/accounts", {});
-            this.state.accounts = res || [];
-            if (res && res.length) this.state.accountId = res[0].id;
+            const res = await rpc("/microsoft/locations", {});
+            this.state.locations = res || [];
+            if (res && res.length) {
+                this.state.locationId = res[0].id;
+                this.state.currentLocation = res[0];
+            }
         } catch (e) {
-            console.error("loadAccounts error:", e);
-            this.state.accounts = [];
+            console.error("loadLocations error:", e);
+            this.state.locations = [];
         }
+    }
+
+    async onLocationChange(ev) {
+        const id = Number(ev.target.value);
+        this.state.locationId = id;
+        this.state.currentLocation = this.state.locations.find((item) => item.id === id) || null;
+        this.state.path = [];
+        this.state.search = "";
+        this.state.searching = false;
+        this._selectedCache.clear();
+        await this.loadFiles();
+    }
+
+    canEdit() {
+        return !!(this.state.currentLocation && this.state.currentLocation.can_edit);
+    }
+
+    canManage() {
+        return !!(this.state.currentLocation && this.state.currentLocation.can_manage);
     }
 
     // =========================================================
     // LOAD
     // =========================================================
     async loadFiles(folderId = null) {
+        if (!this.state.locationId) {
+            this.state.loading = false;
+            this.state.files = [];
+            this.state.filteredFiles = [];
+            return;
+        }
         this.state.loading = true;
         // En modo selector NO reseteamos la selección al navegar:
         // el usuario puede haber elegido archivos en otras carpetas
         // y queremos mantenerlos. Solo limpiamos el Set visible.
         this.state.selected = new Set();
         try {
-            const result = await rpc("/onedrive/list", {
+            const result = await rpc("/microsoft/list", {
                 parent_id: folderId,
-                account_id: this.state.accountId,
+                location_id: this.state.locationId,
             });
             // Sanitizar respuesta: quedarnos solo con items válidos
             const raw = (result && result.value) || [];
@@ -296,9 +330,9 @@ export class OneDriveApp extends Component {
         this.state.searching = true;
         this.state.loading = true;
         try {
-            const res = await rpc("/onedrive/search", {
+            const res = await rpc("/microsoft/search", {
                 query: q,
-                account_id: this.state.accountId,
+                location_id: this.state.locationId,
             });
             const raw = (res && res.value) || [];
             this.state.files = raw.filter(f => f && f.id && f.name);
@@ -353,6 +387,8 @@ export class OneDriveApp extends Component {
                     id: file.id,
                     name: file.name,
                     size: file.size,
+                    location_id: this.state.locationId,
+                    location_name: this.state.currentLocation?.name || "",
                 });
             }
         }
@@ -384,6 +420,8 @@ export class OneDriveApp extends Component {
                         id: f.id,
                         name: f.name,
                         size: f.size,
+                        location_id: this.state.locationId,
+                        location_name: this.state.currentLocation?.name || "",
                     });
                 }
             }
@@ -433,10 +471,10 @@ export class OneDriveApp extends Component {
         }
         this.dialog.add(FilePreviewDialog, {
             file,
-            accountId: this.state.accountId,
+            locationId: this.state.locationId,
             onDownload: () => this.downloadItem(file),
-            onShare: () => this.shareItem(file),
-            onDelete: () => this.deleteItem(file),
+            onShare: this.canManage() && !this.selectorMode ? () => this.shareItem(file) : undefined,
+            onDelete: this.canManage() && !this.selectorMode ? () => this.deleteItem(file) : undefined,
             onOpenExternal: () => this.openExternal(file),
         });
     }
@@ -444,8 +482,12 @@ export class OneDriveApp extends Component {
     downloadItem(file) {
         if (!file) return;
         const url = file.folder
-            ? `/onedrive/download_folder/${file.id}`
-            : `/onedrive/download/${file.id}`;
+            ? null
+            : `/microsoft/download/${file.id}?location_id=${this.state.locationId}`;
+        if (!url) {
+            this.notify(_t("La descarga de carpetas completas no está habilitada para esta ubicación"), "warning");
+            return;
+        }
         window.open(url, "_blank");
     }
 
@@ -458,10 +500,10 @@ export class OneDriveApp extends Component {
             confirmLabel: _t("Crear"),
             onConfirm: async (name) => {
                 try {
-                    await rpc("/onedrive/create_folder", {
+                    await rpc("/microsoft/create_folder", {
                         name,
                         parent_id: this.state.currentFolder,
-                        account_id: this.state.accountId,
+                        location_id: this.state.locationId,
                     });
                     this.notify(_t("Carpeta creada"), "success");
                     await this.loadFiles(this.state.currentFolder);
@@ -483,10 +525,10 @@ export class OneDriveApp extends Component {
             confirmLabel: _t("Renombrar"),
             onConfirm: async (name) => {
                 try {
-                    await rpc("/onedrive/rename", {
+                    await rpc("/microsoft/rename", {
                         item_id: file.id,
                         new_name: name,
-                        account_id: this.state.accountId,
+                        location_id: this.state.locationId,
                     });
                     this.notify(_t("Renombrado"), "success");
                     await this._refresh();
@@ -509,9 +551,9 @@ export class OneDriveApp extends Component {
             confirmLabel: _t("Eliminar"),
             onConfirm: async () => {
                 try {
-                    await rpc("/onedrive/delete", {
+                    await rpc("/microsoft/delete", {
                         item_id: file.id,
-                        account_id: this.state.accountId,
+                        location_id: this.state.locationId,
                     });
                     this.notify(_t("Elemento eliminado"), "success");
                     await this._refresh();
@@ -536,9 +578,9 @@ export class OneDriveApp extends Component {
                 let ok = 0, ko = 0;
                 for (const id of ids) {
                     try {
-                        await rpc("/onedrive/delete", {
+                        await rpc("/microsoft/delete", {
                             item_id: id,
-                            account_id: this.state.accountId,
+                            location_id: this.state.locationId,
                         });
                         ok++;
                     } catch (e) {
@@ -559,7 +601,7 @@ export class OneDriveApp extends Component {
         if (!file) return;
         this.dialog.add(ShareDialog, {
             file,
-            accountId: this.state.accountId,
+            locationId: this.state.locationId,
         });
     }
 
@@ -589,8 +631,8 @@ export class OneDriveApp extends Component {
         this.state.uploadProgress = { name: file.name, percent: 0 };
         const formData = new FormData();
         formData.append("file", file);
-        if (this.state.accountId) {
-            formData.append("account_id", this.state.accountId);
+        if (this.state.locationId) {
+            formData.append("location_id", this.state.locationId);
         }
         if (this.state.currentFolder) {
             formData.append("parent_id", this.state.currentFolder);
@@ -598,7 +640,10 @@ export class OneDriveApp extends Component {
 
         return new Promise((resolve) => {
             const xhr = new XMLHttpRequest();
-            xhr.open("POST", "/onedrive/upload");
+            if (typeof odoo !== "undefined" && odoo.csrf_token) {
+                formData.append("csrf_token", odoo.csrf_token);
+            }
+            xhr.open("POST", "/microsoft/upload");
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
                     this.state.uploadProgress = {
@@ -630,7 +675,7 @@ export class OneDriveApp extends Component {
     // =========================================================
     onDragOver(ev) {
         // En modo selector no permitimos subir archivos por drag&drop
-        if (this.selectorMode) return;
+        if (this.selectorMode || !this.canEdit()) return;
         ev.preventDefault();
         if (ev.dataTransfer && ev.dataTransfer.types &&
             ev.dataTransfer.types.indexOf("Files") !== -1) {
@@ -639,7 +684,7 @@ export class OneDriveApp extends Component {
     }
 
     onDragLeave(ev) {
-        if (this.selectorMode) return;
+        if (this.selectorMode || !this.canEdit()) return;
         ev.preventDefault();
         // Solo desactivar si salimos al exterior del componente
         if (!this.rootRef.el || !this.rootRef.el.contains(ev.relatedTarget)) {
@@ -648,7 +693,7 @@ export class OneDriveApp extends Component {
     }
 
     async onDrop(ev) {
-        if (this.selectorMode) return;
+        if (this.selectorMode || !this.canEdit()) return;
         ev.preventDefault();
         this.state.dragOver = false;
         const files = ev.dataTransfer && ev.dataTransfer.files;
@@ -667,7 +712,7 @@ export class OneDriveApp extends Component {
             }
             this.closeCtxMenu();
         }
-        if (ev.key === "Delete" && this.state.selected.size > 0 && !this.selectorMode) {
+        if (ev.key === "Delete" && this.state.selected.size > 0 && !this.selectorMode && this.canManage()) {
             // Solo si no estamos en un input
             const tag = (ev.target && ev.target.tagName) || "";
             if (tag !== "INPUT" && tag !== "TEXTAREA") {
