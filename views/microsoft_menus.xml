@@ -1,21 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
+    <!-- Asignar automáticamente los administradores principales -->
+    <record id="group_microsoft_admin" model="res.groups">
+        <field name="user_ids"
+               eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- Acción principal -->
     <record id="action_microsoft_documents" model="ir.actions.client">
         <field name="name">Documentos Microsoft 365</field>
         <field name="tag">onedrive_app</field>
     </record>
 
-    <menuitem id="menu_microsoft_root" name="Microsoft 365" sequence="10" groups="odoo_onedrive_integration.group_microsoft_document_user"/>
-    <menuitem id="menu_microsoft_documents" name="Documentos" parent="menu_microsoft_root" action="action_microsoft_documents" sequence="10"/>
-    <menuitem id="menu_microsoft_connection" name="Mi conexión" parent="menu_microsoft_root" action="action_microsoft_my_connections" sequence="20"/>
+    <!-- Aplicación principal -->
+    <menuitem id="menu_microsoft_root"
+              name="Microsoft 365"
+              sequence="10"
+              web_icon="odoo_onedrive_integration,static/description/icon.png"
+              groups="odoo_onedrive_integration.group_microsoft_document_user,base.group_system"/>
 
-    <menuitem id="menu_microsoft_administration" name="Administración" parent="menu_microsoft_root" sequence="50" groups="odoo_onedrive_integration.group_microsoft_admin"/>
-    <menuitem id="menu_microsoft_provision" name="Aprovisionar usuarios" parent="menu_microsoft_administration" action="action_microsoft_access_wizard" sequence="10"/>
-    <menuitem id="menu_microsoft_guests" name="Usuarios invitados" parent="menu_microsoft_administration" action="action_microsoft_guests" sequence="20"/>
-    <menuitem id="menu_microsoft_groups" name="Grupos" parent="menu_microsoft_administration" action="action_microsoft_groups" sequence="30"/>
-    <menuitem id="menu_sharepoint_sites" name="Sitios SharePoint" parent="menu_microsoft_administration" action="action_sharepoint_sites" sequence="40"/>
-    <menuitem id="menu_sharepoint_libraries" name="Bibliotecas" parent="menu_microsoft_administration" action="action_sharepoint_libraries" sequence="50"/>
-    <menuitem id="menu_microsoft_locations" name="Ubicaciones y permisos" parent="menu_microsoft_administration" action="action_microsoft_locations" sequence="60"/>
-    <menuitem id="menu_microsoft_audit" name="Auditoría" parent="menu_microsoft_administration" action="action_microsoft_audit" sequence="70"/>
-    <menuitem id="menu_microsoft_tenants" name="Configuración Microsoft" parent="menu_microsoft_administration" action="action_microsoft_tenants" sequence="90"/>
+    <menuitem id="menu_microsoft_documents"
+              name="Documentos"
+              parent="menu_microsoft_root"
+              action="action_microsoft_documents"
+              sequence="10"/>
+
+    <menuitem id="menu_microsoft_connection"
+              name="Mi conexión"
+              parent="menu_microsoft_root"
+              action="action_microsoft_my_connections"
+              sequence="20"/>
+
+    <!-- Administración -->
+    <menuitem id="menu_microsoft_administration"
+              name="Administración"
+              parent="menu_microsoft_root"
+              sequence="50"
+              groups="odoo_onedrive_integration.group_microsoft_admin,base.group_system"/>
+
+    <menuitem id="menu_microsoft_provision"
+              name="Aprovisionar usuarios"
+              parent="menu_microsoft_administration"
+              action="action_microsoft_access_wizard"
+              sequence="10"/>
+
+    <menuitem id="menu_microsoft_guests"
+              name="Usuarios invitados"
+              parent="menu_microsoft_administration"
+              action="action_microsoft_guests"
+              sequence="20"/>
+
+    <menuitem id="menu_microsoft_groups"
+              name="Grupos"
+              parent="menu_microsoft_administration"
+              action="action_microsoft_groups"
+              sequence="30"/>
+
+    <menuitem id="menu_sharepoint_sites"
+              name="Sitios SharePoint"
+              parent="menu_microsoft_administration"
+              action="action_sharepoint_sites"
+              sequence="40"/>
+
+    <menuitem id="menu_sharepoint_libraries"
+              name="Bibliotecas"
+              parent="menu_microsoft_administration"
+              action="action_sharepoint_libraries"
+              sequence="50"/>
+
+    <menuitem id="menu_microsoft_locations"
+              name="Ubicaciones y permisos"
+              parent="menu_microsoft_administration"
+              action="action_microsoft_locations"
+              sequence="60"/>
+
+    <menuitem id="menu_microsoft_audit"
+              name="Auditoría"
+              parent="menu_microsoft_administration"
+              action="action_microsoft_audit"
+              sequence="70"/>
+
+    <menuitem id="menu_microsoft_tenants"
+              name="Configuración Microsoft"
+              parent="menu_microsoft_administration"
+              action="action_microsoft_tenants"
+              sequence="90"/>
+
 </odoo>
