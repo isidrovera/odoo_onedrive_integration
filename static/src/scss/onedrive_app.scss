@@ -849,3 +849,456 @@
     .o_onedrive_app .od_card_name { font-size: 12px; }
     .o_onedrive_app .od_card_meta { font-size: 10px; }
 }
+
+/* ============================================================
+   MICROSOFT 365 DOCUMENTS — INTERFAZ MODERNA 2026
+   ============================================================ */
+
+.o_onedrive_app {
+    --od-primary: #0f6cbd;
+    --od-primary-dark: #115ea3;
+    --od-navy: #10243e;
+    --od-navy-soft: #173554;
+    --od-bg: #f3f6fa;
+    --od-surface: #ffffff;
+    --od-border: #e3e9f1;
+    --od-text: #172033;
+    --od-muted: #65738a;
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    background: var(--od-bg);
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+/* Sidebar */
+.o_onedrive_app .od_sidebar {
+    min-width: 0;
+    min-height: 0;
+    padding: 22px 14px;
+    color: #dce8f5;
+    background: linear-gradient(180deg, var(--od-navy) 0%, #0c1d32 100%);
+    overflow-y: auto;
+}
+.o_onedrive_app .od_brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 0 8px 24px;
+}
+.o_onedrive_app .od_brand_mark {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    color: #fff;
+    background: #176fbd;
+    box-shadow: 0 8px 20px rgba(0, 91, 161, .32);
+}
+.o_onedrive_app .od_brand_mark i { font-size: 20px; }
+.o_onedrive_app .od_brand strong { display: block; color: #fff; font-size: 15px; }
+.o_onedrive_app .od_brand small {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    color: #aabbd0;
+    font-size: 11px;
+}
+.o_onedrive_app .od_online_dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #36c98f;
+    box-shadow: 0 0 0 3px rgba(54, 201, 143, .13);
+}
+.o_onedrive_app .od_nav { display: flex; flex-direction: column; gap: 5px; }
+.o_onedrive_app .od_nav_label {
+    padding: 0 11px 8px;
+    color: #8297af;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+.o_onedrive_app .od_nav_item {
+    width: 100%;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    color: #bdcad9;
+    background: transparent;
+    text-align: left;
+}
+.o_onedrive_app .od_nav_item i { width: 18px; font-size: 17px; text-align: center; }
+.o_onedrive_app .od_nav_item:hover { color: #fff; background: rgba(255,255,255,.07); }
+.o_onedrive_app .od_nav_item.active {
+    color: #fff;
+    background: linear-gradient(90deg, rgba(24, 108, 181, .78), rgba(24, 108, 181, .32));
+    box-shadow: inset 3px 0 #55a8f0;
+}
+.o_onedrive_app .od_spaces {
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,.11);
+}
+.o_onedrive_app .od_sidebar_location {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px 11px;
+    border-radius: 9px;
+    color: #f2f7fc;
+    background: rgba(255,255,255,.06);
+    line-height: 1.35;
+    word-break: break-word;
+}
+.o_onedrive_app .od_spaces > small {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 12px;
+    color: #8fa6bf;
+}
+
+/* Workspace */
+.o_onedrive_app .od_workspace {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.o_onedrive_app .od_modern_header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 24px 14px;
+}
+.o_onedrive_app .od_title_block h1 {
+    margin: 0;
+    color: var(--od-text);
+    font-size: 27px;
+    font-weight: 720;
+    letter-spacing: -.025em;
+}
+.o_onedrive_app .od_header_path {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 4px;
+    color: var(--od-muted);
+    font-size: 12px;
+}
+.o_onedrive_app .od_header_path i { font-size: 9px; }
+.o_onedrive_app .od_header_tools {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 9px;
+    min-width: 0;
+}
+.o_onedrive_app .od_searchbox {
+    max-width: 420px;
+    min-height: 40px;
+    padding: 5px 13px;
+    border: 1px solid #d9e1eb;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(16, 36, 62, .03);
+}
+.o_onedrive_app .od_searchbox .btn {
+    width: 25px;
+    height: 25px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+}
+.o_onedrive_app .od_icon_button {
+    width: 40px;
+    height: 40px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 1px solid #d9e1eb;
+    border-radius: 10px;
+    color: #526178;
+    background: #fff;
+}
+.o_onedrive_app .od_icon_button:hover { color: var(--od-primary); border-color: #a8c9e6; background: #f5faff; }
+
+/* Command bar */
+.o_onedrive_app .od_commandbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 24px 15px;
+}
+.o_onedrive_app .od_location_selector {
+    flex: 0 1 360px;
+    min-width: 210px;
+    position: relative;
+}
+.o_onedrive_app .od_location_selector > i {
+    position: absolute;
+    z-index: 2;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--od-primary);
+}
+.o_onedrive_app .od_location_selector select {
+    height: 40px;
+    padding-left: 37px;
+    border: 1px solid #d9e1eb;
+    border-radius: 10px;
+    background-color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+.o_onedrive_app .od_toolbar_actions { justify-content: flex-end; }
+.o_onedrive_app .od_commandbar .btn {
+    min-height: 40px;
+    padding: 8px 14px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.o_onedrive_app .od_btn_new { color: #fff; border-color: var(--od-primary); background: var(--od-primary); }
+.o_onedrive_app .od_btn_new:hover { color: #fff; background: var(--od-primary-dark); }
+.o_onedrive_app .od_btn_upload { color: #26364d; border: 1px solid #d6dee9; background: #fff; }
+.o_onedrive_app .od_btn_upload:hover { color: var(--od-primary); border-color: #9bc2e4; background: #f7fbff; }
+.o_onedrive_app .od_viewswitch { border: 1px solid #dfe6ef; background: #edf2f7; }
+
+/* Stats */
+.o_onedrive_app .od_stats {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(145px, 1fr));
+    gap: 12px;
+    padding: 0 24px 14px;
+}
+.o_onedrive_app .od_stat_card {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 15px;
+    border: 1px solid var(--od-border);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 3px 12px rgba(29, 48, 74, .035);
+}
+.o_onedrive_app .od_stat_icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 12px;
+    font-size: 20px;
+}
+.o_onedrive_app .od_stat_card > div { min-width: 0; display: grid; }
+.o_onedrive_app .od_stat_card small { color: var(--od-muted); font-size: 11px; font-weight: 600; }
+.o_onedrive_app .od_stat_card strong { color: var(--od-text); font-size: 20px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; }
+.o_onedrive_app .od_stat_card span:not(.od_stat_icon) { color: #8a96a8; font-size: 10px; white-space: nowrap; }
+.o_onedrive_app .od_stat_card.blue .od_stat_icon { color: #0f6cbd; background: #eaf4fd; }
+.o_onedrive_app .od_stat_card.amber .od_stat_icon { color: #b65e00; background: #fff3df; }
+.o_onedrive_app .od_stat_card.violet .od_stat_icon { color: #6546a8; background: #f0ebfb; }
+.o_onedrive_app .od_stat_card.green .od_stat_icon { color: #13875d; background: #e5f7ef; }
+
+/* Breadcrumb and content */
+.o_onedrive_app .od_breadcrumb {
+    margin: 0 24px;
+    padding: 9px 12px;
+    border: 1px solid var(--od-border);
+    border-bottom: 0;
+    border-radius: 11px 11px 0 0;
+    background: #fff;
+}
+.o_onedrive_app .od_back_button {
+    width: 29px;
+    height: 29px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    color: #526178;
+    background: #eef3f8;
+}
+.o_onedrive_app .od_content_shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    margin: 0 24px 20px;
+    border: 1px solid var(--od-border);
+    border-radius: 0 0 12px 12px;
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 5px 18px rgba(26, 45, 70, .04);
+}
+.o_onedrive_app .od_files_panel {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Modern list */
+.o_onedrive_app .od_list { border-radius: 0; }
+.o_onedrive_app .od_list_header,
+.o_onedrive_app .od_list_row {
+    grid-template-columns: 34px minmax(190px, 1.45fr) minmax(130px, .85fr) 150px 85px 150px;
+    gap: 13px;
+    padding: 0 14px;
+}
+.o_onedrive_app .od_list_header {
+    height: 43px;
+    color: #69778b;
+    background: #fbfcfe;
+    font-size: 10px;
+    letter-spacing: .045em;
+}
+.o_onedrive_app .od_list_row { min-height: 61px; height: 61px; }
+.o_onedrive_app .od_list_row:hover { background: #f6faff; }
+.o_onedrive_app .od_list_row.selected { background: #eaf4fd; box-shadow: inset 3px 0 var(--od-primary); }
+.o_onedrive_app .od_col_author { min-width: 0; display: flex; align-items: center; gap: 8px; color: #425168; font-size: 12px; }
+.o_onedrive_app .od_col_author > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.o_onedrive_app .od_avatar {
+    width: 28px;
+    height: 28px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    color: #fff;
+    background: linear-gradient(145deg, #0f6cbd, #6750a4);
+    font-size: 9px;
+    font-weight: 700;
+}
+.o_onedrive_app .od_col_modified { display: flex; flex-direction: column; line-height: 1.2; }
+.o_onedrive_app .od_col_modified strong { color: #344259; font-size: 12px; font-weight: 600; }
+.o_onedrive_app .od_col_modified small { margin-top: 3px; color: #8a96a8; font-size: 10px; }
+.o_onedrive_app .od_listicon { font-size: 25px; }
+.o_onedrive_app .od_listname { color: #202b3d; font-weight: 600; }
+
+/* Modern grid */
+.o_onedrive_app .od_grid { padding: 16px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.o_onedrive_app .od_card { height: 205px; min-height: 205px; border-radius: 12px; }
+.o_onedrive_app .od_card_thumb { flex-basis: 110px; height: 110px; min-height: 110px; background: linear-gradient(145deg, #fbfcfe, #f0f4f9); }
+.o_onedrive_app .od_card_body { justify-content: flex-start; padding: 10px 12px; }
+.o_onedrive_app .od_card_author { display: flex; align-items: center; gap: 7px; margin-top: 8px; color: #66748a; font-size: 10px; overflow: hidden; white-space: nowrap; }
+.o_onedrive_app .od_card_author .od_avatar { width: 21px; height: 21px; font-size: 7px; }
+
+/* Details */
+.o_onedrive_app .od_details_panel {
+    flex: 0 0 300px;
+    width: 300px;
+    min-width: 0;
+    padding: 17px;
+    border-left: 1px solid var(--od-border);
+    background: #fbfcfe;
+    overflow-y: auto;
+}
+.o_onedrive_app .od_details_header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.o_onedrive_app .od_details_header > div { min-width: 0; }
+.o_onedrive_app .od_details_header small { color: var(--od-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.o_onedrive_app .od_details_header h3 { margin: 4px 0 0; color: var(--od-text); font-size: 15px; line-height: 1.35; word-break: break-word; }
+.o_onedrive_app .od_details_header .od_icon_button { width: 31px; height: 31px; }
+.o_onedrive_app .od_details_preview {
+    height: 132px;
+    display: grid;
+    place-items: center;
+    margin: 16px 0;
+    border: 1px solid #e3e9f1;
+    border-radius: 11px;
+    background: #fff;
+}
+.o_onedrive_app .od_details_preview i { font-size: 54px; }
+.o_onedrive_app .od_details_tabs { display: flex; gap: 22px; border-bottom: 1px solid #dfe6ef; }
+.o_onedrive_app .od_details_tabs span { position: relative; padding: 0 1px 10px; color: #758297; font-size: 12px; font-weight: 600; }
+.o_onedrive_app .od_details_tabs span.active { color: var(--od-primary); }
+.o_onedrive_app .od_details_tabs span.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--od-primary); }
+.o_onedrive_app .od_details_list { margin: 4px 0 0; }
+.o_onedrive_app .od_details_list > div { padding: 12px 0; border-bottom: 1px solid #e8edf3; }
+.o_onedrive_app .od_details_list dt { margin-bottom: 6px; color: #7a8799; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.o_onedrive_app .od_details_list dd { display: flex; align-items: center; gap: 8px; margin: 0; color: #344259; font-size: 12px; line-height: 1.35; word-break: break-word; }
+.o_onedrive_app .od_details_list dd strong { display: block; }
+.o_onedrive_app .od_details_list dd small { display: block; color: #8591a2; }
+.o_onedrive_app .od_details_actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 15px; }
+.o_onedrive_app .od_details_actions .btn { min-height: 38px; border-radius: 8px; font-size: 11px; }
+
+/* Empty and loading inside workspace */
+.o_onedrive_app .od_workspace > .od_loading,
+.o_onedrive_app .od_workspace > .od_empty { margin: 0 24px 20px; border: 1px solid var(--od-border); border-radius: 12px; background: #fff; }
+.o_onedrive_app .od_dropoverlay { left: 232px; }
+
+/* Responsive */
+@media (max-width: 1350px) {
+    .o_onedrive_app { grid-template-columns: 205px minmax(0, 1fr); }
+    .o_onedrive_app .od_details_panel { flex-basis: 270px; width: 270px; }
+    .o_onedrive_app .od_list_header,
+    .o_onedrive_app .od_list_row { grid-template-columns: 32px minmax(175px, 1.35fr) minmax(115px, .8fr) 135px 70px 118px; gap: 9px; }
+    .o_onedrive_app .od_dropoverlay { left: 205px; }
+}
+@media (max-width: 1100px) {
+    .o_onedrive_app { grid-template-columns: 72px minmax(0, 1fr); }
+    .o_onedrive_app .od_sidebar { padding: 18px 9px; }
+    .o_onedrive_app .od_brand { justify-content: center; padding: 0 0 22px; }
+    .o_onedrive_app .od_brand > div,
+    .o_onedrive_app .od_nav_label,
+    .o_onedrive_app .od_nav_item span,
+    .o_onedrive_app .od_spaces { display: none; }
+    .o_onedrive_app .od_nav_item { justify-content: center; padding: 0; }
+    .o_onedrive_app .od_nav_item i { width: auto; }
+    .o_onedrive_app .od_stats { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+    .o_onedrive_app .od_details_panel { position: absolute; z-index: 20; top: 0; right: 0; bottom: 0; width: 310px; box-shadow: -12px 0 30px rgba(22, 39, 62, .13); }
+    .o_onedrive_app .od_col_author { display: none; }
+    .o_onedrive_app .od_list_header,
+    .o_onedrive_app .od_list_row { grid-template-columns: 32px minmax(180px, 1fr) 145px 75px 125px; }
+    .o_onedrive_app .od_dropoverlay { left: 72px; }
+}
+@media (max-width: 768px) {
+    .o_onedrive_app { display: flex; flex-direction: column; overflow-y: auto; }
+    .o_onedrive_app .od_sidebar { display: none; }
+    .o_onedrive_app .od_workspace { flex: 0 0 auto; min-height: 100%; overflow: visible; }
+    .o_onedrive_app .od_modern_header { align-items: flex-start; flex-direction: column; padding: 16px 14px 12px; }
+    .o_onedrive_app .od_header_tools,
+    .o_onedrive_app .od_searchbox { width: 100%; max-width: none; }
+    .o_onedrive_app .od_commandbar { align-items: stretch; flex-direction: column; padding: 0 14px 12px; }
+    .o_onedrive_app .od_location_selector { flex-basis: auto; width: 100%; }
+    .o_onedrive_app .od_toolbar_actions { justify-content: flex-start; }
+    .o_onedrive_app .od_stats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 14px 12px; }
+    .o_onedrive_app .od_stat_card { padding: 11px; }
+    .o_onedrive_app .od_stat_icon { width: 36px; height: 36px; }
+    .o_onedrive_app .od_breadcrumb { margin: 0 14px; }
+    .o_onedrive_app .od_content_shell { min-height: 440px; margin: 0 14px 15px; }
+    .o_onedrive_app .od_list_header,
+    .o_onedrive_app .od_list_row { grid-template-columns: 29px minmax(150px, 1fr) 72px; padding: 0 8px; }
+    .o_onedrive_app .od_col_modified,
+    .o_onedrive_app .od_col_author,
+    .o_onedrive_app .od_col_actions { display: none; }
+    .o_onedrive_app .od_details_panel { position: fixed; top: 46px; width: min(330px, 92vw); }
+    .o_onedrive_app .od_dropoverlay { left: 0; }
+}
+@media (max-width: 480px) {
+    .o_onedrive_app .od_stats { grid-template-columns: 1fr; }
+    .o_onedrive_app .od_stat_card:nth-child(3),
+    .o_onedrive_app .od_stat_card:nth-child(4) { display: none; }
+    .o_onedrive_app .od_commandbar .btn { padding-left: 10px; padding-right: 10px; }
+    .o_onedrive_app .od_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

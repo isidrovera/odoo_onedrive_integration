@@ -39,6 +39,7 @@ export class OneDriveApp extends Component {
             currentLocation: null,
             ctxMenu: { open: false, x: 0, y: 0, file: null },
             dragOver: false,
+            detailFile: null,
         });
 
         this._searchDebounce = null;
@@ -143,6 +144,9 @@ export class OneDriveApp extends Component {
             // Sanitizar respuesta: quedarnos solo con items válidos
             const raw = (result && result.value) || [];
             this.state.files = raw.filter(f => f && f.id && f.name);
+            if (this.state.detailFile && !this.state.files.some(f => f.id === this.state.detailFile.id)) {
+                this.state.detailFile = null;
+            }
             this.state.currentFolder = folderId;
             if (folderId === null) this.state.path = [];
             this.applyFilterAndSort();
@@ -224,6 +228,71 @@ export class OneDriveApp extends Component {
     }
 
     setView(v) { this.state.view = v; }
+
+    // =========================================================
+    // INFORMACIÓN PARA LA INTERFAZ MODERNA
+    // =========================================================
+    getStats() {
+        const files = this.state.files || [];
+        const now = Date.now();
+        const todayLimit = 24 * 60 * 60 * 1000;
+        return {
+            files: files.filter(item => !item.folder).length,
+            folders: files.filter(item => !!item.folder).length,
+            modifiedToday: files.filter(item => {
+                const value = Date.parse(item.lastModifiedDateTime || "");
+                return Number.isFinite(value) && now - value >= 0 && now - value <= todayLimit;
+            }).length,
+            totalSize: files.reduce((total, item) => total + (item.folder ? 0 : Number(item.size || 0)), 0),
+        };
+    }
+
+    getModifiedBy(file) {
+        if (!file) return _t("Microsoft 365");
+        const identity = file.lastModifiedBy || {};
+        return (
+            identity.user?.displayName ||
+            identity.application?.displayName ||
+            identity.device?.displayName ||
+            _t("Microsoft 365")
+        );
+    }
+
+    getModifierInitials(file) {
+        const name = this.getModifiedBy(file).trim();
+        if (!name) return "M";
+        return name.split(/\s+/).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join("");
+    }
+
+    formatRelativeDate(value) {
+        const date = Date.parse(value || "");
+        if (!Number.isFinite(date)) return _t("Sin fecha");
+        const seconds = Math.max(0, Math.floor((Date.now() - date) / 1000));
+        if (seconds < 60) return _t("Ahora");
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return _t("Hace %s min", minutes);
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return _t("Hace %s h", hours);
+        const days = Math.floor(hours / 24);
+        if (days === 1) return _t("Ayer");
+        if (days < 30) return _t("Hace %s días", days);
+        return this.formatDate(value);
+    }
+
+    getCurrentPath() {
+        const location = this.state.currentLocation?.name || _t("Ubicación");
+        const folders = (this.state.path || []).map(item => item.name).filter(Boolean);
+        return [location, ...folders].join(" / ");
+    }
+
+    selectForDetails(file, ev) {
+        if (ev) ev.stopPropagation();
+        this.state.detailFile = file || null;
+    }
+
+    closeDetails() {
+        this.state.detailFile = null;
+    }
 
     // =========================================================
     // NAVIGATION

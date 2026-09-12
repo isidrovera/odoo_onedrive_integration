@@ -7,99 +7,106 @@
          t-on-dragleave="onDragLeave"
          t-on-drop="onDrop">
 
-        <!-- TOP BAR -->
-        <div class="od_topbar">
-            <div class="od_logo">
-                <i class="bi bi-cloud-fill"/>
-                <span>Microsoft 365</span>
-            </div>
-            <div class="od_location_selector">
-                <select class="form-select form-select-sm" t-on-change="onLocationChange" t-att-value="state.locationId or ''">
-                    <t t-foreach="state.locations" t-as="location" t-key="location.id">
-                        <option t-att-value="location.id" t-att-selected="location.id === state.locationId">
-                            <t t-esc="location.name"/>
-                        </option>
-                    </t>
-                </select>
-            </div>
-            <div class="od_topbar_center">
-                <div class="od_searchbox">
-                    <i class="bi bi-search"/>
-                    <input type="text"
-                           t-att-value="state.search"
-                           t-on-input="onSearchInput"
-                           t-on-keydown="onSearchSubmit"
-                           placeholder="Buscar en la ubicación actual..."/>
-                    <button t-if="state.search" class="btn btn-sm btn-link p-0" t-on-click="() => this.clearSearch()">
-                        <i class="bi bi-x-lg"/>
-                    </button>
+        <t t-set="stats" t-value="getStats()"/>
+
+        <!-- NAVEGACIÓN LATERAL -->
+        <aside class="od_sidebar">
+            <div class="od_brand">
+                <span class="od_brand_mark"><i class="bi bi-microsoft"/></span>
+                <div>
+                    <strong>Microsoft 365</strong>
+                    <small><span class="od_online_dot"/> Conectado</small>
                 </div>
             </div>
-            <div>
-                <button class="btn btn-light btn-sm" t-on-click="() => this.refresh()" title="Actualizar">
-                    <i class="bi bi-arrow-clockwise"/>
-                </button>
+            <nav class="od_nav">
+                <div class="od_nav_label">Documentos</div>
+                <button class="od_nav_item"><i class="bi bi-house-door"/><span>Inicio</span></button>
+                <button class="od_nav_item active"><i class="bi bi-folder2-open"/><span>Mis documentos</span></button>
+                <button class="od_nav_item"><i class="bi bi-share"/><span>Compartidos</span></button>
+                <button class="od_nav_item"><i class="bi bi-clock-history"/><span>Recientes</span></button>
+                <button class="od_nav_item"><i class="bi bi-star"/><span>Favoritos</span></button>
+            </nav>
+            <div class="od_spaces">
+                <div class="od_nav_label">Ubicación actual</div>
+                <div class="od_sidebar_location">
+                    <i class="bi bi-building"/>
+                    <span t-esc="(state.currentLocation and state.currentLocation.name) or 'Sin ubicación'"/>
+                </div>
+                <small t-if="state.currentLocation">
+                    <i class="bi bi-shield-check"/>
+                    <t t-if="canManage()">Administrador</t>
+                    <t t-elif="canEdit()">Puede editar</t>
+                    <t t-else="">Solo lectura</t>
+                </small>
             </div>
-        </div>
+        </aside>
 
-        <!-- TOOLBAR -->
-        <div class="od_toolbar">
-            <div class="od_toolbar_actions">
-                <t t-if="!selectorMode and canEdit()">
-                    <button class="btn btn-primary btn-sm" t-on-click="() => this.triggerUpload()">
-                        <i class="bi bi-cloud-upload"/> Subir
-                    </button>
-                    <button class="btn btn-light btn-sm" t-on-click="() => this.createFolder()">
-                        <i class="bi bi-folder-plus"/> Nueva carpeta
-                    </button>
-                    <input type="file" t-ref="fileInput" multiple="multiple"
-                           style="display:none;" t-on-change="uploadFile"/>
+        <main class="od_workspace">
+            <!-- CABECERA -->
+            <header class="od_modern_header">
+                <div class="od_title_block">
+                    <h1>Documentos</h1>
+                    <div class="od_header_path">Microsoft 365 <i class="bi bi-chevron-right"/> <t t-esc="getCurrentPath()"/></div>
+                </div>
+                <div class="od_header_tools">
+                    <div class="od_searchbox">
+                        <i class="bi bi-search"/>
+                        <input type="text" t-att-value="state.search" t-on-input="onSearchInput"
+                               t-on-keydown="onSearchSubmit" placeholder="Buscar documentos..."/>
+                        <button t-if="state.search" class="btn" t-on-click="() => this.clearSearch()"><i class="bi bi-x-lg"/></button>
+                    </div>
+                    <button class="od_icon_button" t-on-click="() => this.refresh()" title="Actualizar"><i class="bi bi-arrow-clockwise"/></button>
+                </div>
+            </header>
+
+            <!-- ACCIONES Y UBICACIÓN -->
+            <div class="od_commandbar">
+                <div class="od_location_selector">
+                    <i class="bi bi-cloud-check"/>
+                    <select class="form-select" t-on-change="onLocationChange" t-att-value="state.locationId or ''">
+                        <t t-foreach="state.locations" t-as="location" t-key="location.id">
+                            <option t-att-value="location.id" t-att-selected="location.id === state.locationId"><t t-esc="location.name"/></option>
+                        </t>
+                    </select>
+                </div>
+                <div class="od_toolbar_actions">
+                    <t t-if="!selectorMode and canEdit()">
+                        <button class="btn od_btn_new" t-on-click="() => this.createFolder()"><i class="bi bi-plus-lg"/> Nueva carpeta</button>
+                        <button class="btn od_btn_upload" t-on-click="() => this.triggerUpload()"><i class="bi bi-cloud-arrow-up"/> Subir</button>
+                        <input type="file" t-ref="fileInput" multiple="multiple" style="display:none;" t-on-change="uploadFile"/>
+                    </t>
+                    <t t-if="state.selected.size > 0">
+                        <span class="od_selcount"><i class="bi bi-check-circle-fill"/> <t t-esc="state.selected.size"/> seleccionados</span>
+                        <button t-if="!selectorMode and canManage()" class="btn btn-danger" t-on-click="() => this.deleteSelected()"><i class="bi bi-trash"/> Eliminar</button>
+                    </t>
+                    <div class="od_viewswitch">
+                        <button class="btn" t-att-class="{'active': state.view === 'list'}" t-on-click="() => this.setView('list')" title="Lista"><i class="bi bi-list-ul"/></button>
+                        <button class="btn" t-att-class="{'active': state.view === 'grid'}" t-on-click="() => this.setView('grid')" title="Cuadrícula"><i class="bi bi-grid"/></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RESUMEN -->
+            <section class="od_stats">
+                <article class="od_stat_card blue"><span class="od_stat_icon"><i class="bi bi-file-earmark-text"/></span><div><small>Archivos</small><strong t-esc="stats.files"/><span>En esta carpeta</span></div></article>
+                <article class="od_stat_card amber"><span class="od_stat_icon"><i class="bi bi-folder"/></span><div><small>Carpetas</small><strong t-esc="stats.folders"/><span>En esta carpeta</span></div></article>
+                <article class="od_stat_card violet"><span class="od_stat_icon"><i class="bi bi-database"/></span><div><small>Tamaño visible</small><strong t-esc="formatBytes(stats.totalSize)"/><span>Solo archivos actuales</span></div></article>
+                <article class="od_stat_card green"><span class="od_stat_icon"><i class="bi bi-clock"/></span><div><small>Modificados hoy</small><strong t-esc="stats.modifiedToday"/><span>Últimas 24 horas</span></div></article>
+            </section>
+
+            <!-- RUTA -->
+            <div class="od_breadcrumb">
+                <button t-if="state.path.length > 0" class="od_back_button" t-on-click="() => this.goUp()" title="Subir"><i class="bi bi-arrow-left"/></button>
+                <span class="od_crumb" t-on-click="() => this.goRoot()"><i class="bi bi-house-door"/> <t t-esc="(state.currentLocation and state.currentLocation.name) or 'Ubicación'"/></span>
+                <t t-foreach="state.path" t-as="p" t-key="p.id">
+                    <i class="bi bi-chevron-right od_crumb_sep"/>
+                    <span class="od_crumb" t-on-click="() => this.goTo(p_index)"><t t-esc="p.name"/></span>
                 </t>
-
-                <t t-if="state.selected.size > 0">
-                    <div class="od_separator"/>
-                    <span class="od_selcount">
-                        <i class="bi bi-check-circle-fill"/> <t t-esc="state.selected.size"/> seleccionados
-                    </span>
-                    <button t-if="!selectorMode and canManage()" class="btn btn-danger btn-sm" t-on-click="() => this.deleteSelected()">
-                        <i class="bi bi-trash"/> Eliminar
-                    </button>
-                </t>
+                <span t-if="state.searching" class="od_searchbadge"><i class="bi bi-search"/> Resultados para “<t t-esc="state.search"/>”</span>
             </div>
 
-            <div class="od_viewswitch">
-                <button class="btn btn-sm" t-att-class="{'active': state.view === 'grid'}"
-                        t-on-click="() => this.setView('grid')" title="Cuadrícula">
-                    <i class="bi bi-grid-fill"/>
-                </button>
-                <button class="btn btn-sm" t-att-class="{'active': state.view === 'list'}"
-                        t-on-click="() => this.setView('list')" title="Lista">
-                    <i class="bi bi-list-ul"/>
-                </button>
-            </div>
-        </div>
-
-        <!-- BREADCRUMB -->
-        <div class="od_breadcrumb">
-            <button t-if="state.path.length > 0" class="btn btn-sm btn-light" t-on-click="() => this.goUp()" title="Subir">
-                <i class="bi bi-arrow-up"/>
-            </button>
-            <span class="od_crumb" t-on-click="() => this.goRoot()">
-                <i class="bi bi-house-door-fill"/> <t t-esc="(state.currentLocation and state.currentLocation.name) or 'Ubicación'"/>
-            </span>
-            <t t-foreach="state.path" t-as="p" t-key="p.id">
-                <span class="od_crumb_sep">/</span>
-                <span class="od_crumb" t-on-click="() => this.goTo(p_index)">
-                    <t t-esc="p.name"/>
-                </span>
-            </t>
-            <span t-if="state.searching" class="od_searchbadge">
-                <i class="bi bi-search"/> Resultados: "<t t-esc="state.search"/>"
-            </span>
-        </div>
-
-        <!-- UPLOAD PROGRESS -->
-        <div t-if="state.uploadProgress" class="od_uploadbar">
+            <!-- PROGRESO -->
+            <div t-if="state.uploadProgress" class="od_uploadbar">
             <div class="od_uploadbar_info">
                 <i class="bi bi-cloud-upload"/>
                 Subiendo: <strong><t t-esc="state.uploadProgress.name"/></strong>
@@ -109,43 +116,43 @@
                 <div class="od_progress_bar"
                      t-att-style="`width: ${state.uploadProgress.percent}%`"/>
             </div>
-        </div>
+            </div>
 
-        <!-- DROPZONE -->
-        <div t-if="state.dragOver and !selectorMode" class="od_dropoverlay">
+            <div t-if="state.dragOver and !selectorMode" class="od_dropoverlay">
             <div class="od_dropmsg">
                 <i class="bi bi-cloud-upload-fill"/>
                 <h2>Suelta los archivos aquí</h2>
                 <p>Se subirán a la carpeta actual</p>
             </div>
-        </div>
+            </div>
 
-        <!-- LOADING -->
-        <div t-if="state.loading" class="od_loading">
+            <div t-if="state.loading" class="od_loading">
             <div class="od_spinner"/>
             <p>Cargando archivos...</p>
-        </div>
+            </div>
 
-        <!-- EMPTY -->
-        <div t-if="!state.loading and state.locations.length === 0" class="od_empty">
+            <div t-if="!state.loading and state.locations.length === 0" class="od_empty">
             <i class="bi bi-shield-lock"/>
             <h3>No tienes ubicaciones documentales asignadas</h3>
             <p>Solicita acceso al administrador Microsoft 365.</p>
-        </div>
-        <div t-elif="!state.loading and state.filteredFiles.length === 0" class="od_empty">
+            </div>
+            <div t-elif="!state.loading and state.filteredFiles.length === 0" class="od_empty">
             <i class="bi bi-folder2-open"/>
             <h3 t-if="state.searching">No hay resultados para "<t t-esc="state.search"/>"</h3>
             <h3 t-else="">Esta carpeta está vacía</h3>
             <p t-if="!selectorMode">Arrastra archivos aquí o haz clic en Subir</p>
-        </div>
+            </div>
 
-        <!-- GRID VIEW -->
-        <div t-if="!state.loading and state.view === 'grid' and state.filteredFiles.length > 0"
+            <div class="od_content_shell" t-if="!state.loading and state.filteredFiles.length > 0">
+                <section class="od_files_panel">
+
+        <div t-if="state.view === 'grid'"
              class="od_grid">
             <t t-foreach="state.filteredFiles" t-as="file" t-key="file.id">
                 <t t-set="ic" t-value="getFileIcon(file)"/>
                 <div class="od_card"
                      t-att-class="{'selected': isSelected(file)}"
+                     t-on-click="(ev) => this.selectForDetails(file, ev)"
                      t-on-dblclick="() => this.openFolder(file)"
                      t-on-contextmenu="(ev) => this.openCtxMenu(file, ev)">
 
@@ -173,6 +180,7 @@
                             ·
                             <t t-esc="formatDate(file.lastModifiedDateTime)"/>
                         </div>
+                        <div class="od_card_author"><span class="od_avatar"><t t-esc="getModifierInitials(file)"/></span><t t-esc="getModifiedBy(file)"/></div>
                     </div>
 
                     <div t-if="!selectorMode" class="od_card_actions">
@@ -190,8 +198,7 @@
             </t>
         </div>
 
-        <!-- LIST VIEW -->
-        <div t-if="!state.loading and state.view === 'list' and state.filteredFiles.length > 0"
+        <div t-if="state.view === 'list'"
              class="od_list">
             <div class="od_list_header">
                 <div class="od_col_check">
@@ -203,8 +210,9 @@
                     <i t-if="state.sortBy === 'name'"
                        t-att-class="`bi bi-caret-${state.sortDir === 'asc' ? 'up' : 'down'}-fill`"/>
                 </div>
+                <div class="od_col_author">Modificado por</div>
                 <div class="od_col_modified sortable" t-on-click="() => this.setSort('modified')">
-                    Modificado
+                    Última modificación
                     <i t-if="state.sortBy === 'modified'"
                        t-att-class="`bi bi-caret-${state.sortDir === 'asc' ? 'up' : 'down'}-fill`"/>
                 </div>
@@ -219,6 +227,7 @@
                 <t t-set="ic" t-value="getFileIcon(file)"/>
                 <div class="od_list_row"
                      t-att-class="{'selected': isSelected(file)}"
+                     t-on-click="(ev) => this.selectForDetails(file, ev)"
                      t-on-dblclick="() => this.openFolder(file)"
                      t-on-contextmenu="(ev) => this.openCtxMenu(file, ev)">
                     <div class="od_col_check" t-on-click.stop="(ev) => this.toggleSelect(file, ev)">
@@ -228,7 +237,8 @@
                         <i t-att-class="`bi ${ic.icon} od_listicon`" t-att-style="`color:${ic.color};`"/>
                         <span class="od_listname"><t t-esc="file.name"/></span>
                     </div>
-                    <div class="od_col_modified"><t t-esc="formatDate(file.lastModifiedDateTime)"/></div>
+                    <div class="od_col_author"><span class="od_avatar"><t t-esc="getModifierInitials(file)"/></span><span t-esc="getModifiedBy(file)"/></div>
+                    <div class="od_col_modified"><strong t-esc="formatRelativeDate(file.lastModifiedDateTime)"/><small t-esc="formatDate(file.lastModifiedDateTime)"/></div>
                     <div class="od_col_size">
                         <t t-if="file.folder">—</t>
                         <t t-else=""><t t-esc="formatBytes(file.size)"/></t>
@@ -250,6 +260,34 @@
                 </div>
             </t>
         </div>
+
+                </section>
+
+                <!-- PANEL DE DETALLES -->
+                <aside t-if="state.detailFile" class="od_details_panel">
+                    <div class="od_details_header">
+                        <div><small>Detalles</small><h3 t-esc="state.detailFile.name"/></div>
+                        <button class="od_icon_button" t-on-click="() => this.closeDetails()"><i class="bi bi-x-lg"/></button>
+                    </div>
+                    <div class="od_details_preview">
+                        <t t-set="detailIcon" t-value="getFileIcon(state.detailFile)"/>
+                        <i t-att-class="`bi ${detailIcon.icon}`" t-att-style="`color:${detailIcon.color};`"/>
+                    </div>
+                    <div class="od_details_tabs"><span class="active">Detalles</span><span>Actividad</span></div>
+                    <dl class="od_details_list">
+                        <div><dt>Modificado por</dt><dd><span class="od_avatar"><t t-esc="getModifierInitials(state.detailFile)"/></span><t t-esc="getModifiedBy(state.detailFile)"/></dd></div>
+                        <div><dt>Última modificación</dt><dd><strong t-esc="formatRelativeDate(state.detailFile.lastModifiedDateTime)"/><small t-esc="formatDate(state.detailFile.lastModifiedDateTime)"/></dd></div>
+                        <div><dt>Ubicación</dt><dd><i class="bi bi-folder2"/><t t-esc="getCurrentPath()"/></dd></div>
+                        <div><dt>Tipo</dt><dd t-if="state.detailFile.folder">Carpeta</dd><dd t-else=""><t t-esc="(state.detailFile.file and state.detailFile.file.mimeType) or 'Archivo'"/></dd></div>
+                        <div t-if="!state.detailFile.folder"><dt>Tamaño</dt><dd t-esc="formatBytes(state.detailFile.size)"/></div>
+                    </dl>
+                    <div class="od_details_actions">
+                        <button t-if="!state.detailFile.folder" class="btn btn-primary" t-on-click="() => this.openExternal(state.detailFile)"><i class="bi bi-box-arrow-up-right"/> Abrir</button>
+                        <button class="btn btn-light" t-on-click="() => this.showProperties(state.detailFile)"><i class="bi bi-info-circle"/> Propiedades</button>
+                    </div>
+                </aside>
+            </div>
+        </main>
 
         <!-- CONTEXT MENU -->
         <div t-if="state.ctxMenu.open" class="od_ctxmenu"
