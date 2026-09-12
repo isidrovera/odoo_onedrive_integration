@@ -1292,7 +1292,12 @@
     .o_onedrive_app .od_col_modified,
     .o_onedrive_app .od_col_author,
     .o_onedrive_app .od_col_actions { display: none; }
-    .o_onedrive_app .od_details_panel { position: fixed; top: 46px; width: min(330px, 92vw); }
+    .o_onedrive_app .od_details_panel {
+        position: fixed;
+        top: 46px;
+        width: 330px;
+        max-width: 92vw;
+    }
     .o_onedrive_app .od_dropoverlay { left: 0; }
 }
 @media (max-width: 480px) {
