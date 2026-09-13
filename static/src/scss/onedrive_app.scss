@@ -1015,6 +1015,17 @@
     background: #fff;
     box-shadow: 0 1px 2px rgba(16, 36, 62, .03);
 }
+.o_onedrive_app .od_searchbox input {
+    color: #172033 !important;
+    caret-color: #0f6cbd;
+    -webkit-text-fill-color: #172033;
+    opacity: 1;
+}
+.o_onedrive_app .od_searchbox input::placeholder {
+    color: #7b8799;
+    -webkit-text-fill-color: #7b8799;
+    opacity: 1;
+}
 .o_onedrive_app .od_searchbox .btn {
     width: 25px;
     height: 25px;

@@ -367,25 +367,17 @@ export class OneDriveApp extends Component {
     // =========================================================
     async onSearchInput(ev) {
         this.state.search = ev.target.value;
-
-        if (this._searchDebounce) {
-            clearTimeout(this._searchDebounce);
-            this._searchDebounce = null;
-        }
-
-        if (!this.state.search.trim()) {
+        // No consultar Microsoft Graph mientras el usuario escribe.
+        // La búsqueda global se ejecuta únicamente al presionar Enter.
+        if (!this.state.search.trim() && this.state.searching) {
             this.state.searching = false;
             await this.loadFiles(this.state.currentFolder);
-            return;
         }
-
-        this._searchDebounce = setTimeout(async () => {
-            await this._doGlobalSearch(this.state.search.trim());
-        }, 400);
     }
 
     async onSearchSubmit(ev) {
         if (ev.key !== "Enter") return;
+        ev.preventDefault();
         if (this._searchDebounce) {
             clearTimeout(this._searchDebounce);
             this._searchDebounce = null;
