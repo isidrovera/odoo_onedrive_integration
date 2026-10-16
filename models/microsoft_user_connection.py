@@ -29,9 +29,12 @@ class MicrosoftUserConnection(models.Model):
     last_connected = fields.Datetime(readonly=True)
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ("microsoft_user_tenant_unique", "unique(user_id, tenant_id)", "El usuario ya tiene una conexión para este tenant."),
-    ]
+    
+    _microsoft_user_tenant_unique = models.Constraint(
+        'UNIQUE(user_id, tenant_id)',
+        'El usuario ya tiene una conexión para este tenant.',
+    )
+
 
     def _check_owner_or_admin(self):
         if self.user_id != self.env.user and not self.env.user.has_group("odoo_onedrive_integration.group_microsoft_admin"):

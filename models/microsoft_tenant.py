@@ -56,9 +56,12 @@ class MicrosoftTenant(models.Model):
     last_sync = fields.Datetime(readonly=True)
     last_error = fields.Text(readonly=True)
 
-    _sql_constraints = [
-        ("microsoft_tenant_client_unique", "unique(tenant_id, client_id)", "Esta aplicación ya está registrada para el tenant."),
-    ]
+    
+    _microsoft_tenant_client_unique = models.Constraint(
+        'UNIQUE(tenant_id, client_id)',
+        'Esta aplicación ya está registrada para el tenant.',
+    )
+
 
     @api.depends("access_token", "refresh_token", "token_expiry", "app_access_token", "app_token_expiry")
     def _compute_connection_status(self):

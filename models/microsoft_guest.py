@@ -86,18 +86,17 @@ class MicrosoftGuest(models.Model):
     last_error = fields.Text(readonly=True)
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        (
-            "microsoft_guest_email_tenant_unique",
-            "unique(tenant_id, email)",
-            "El correo ya está registrado en este tenant.",
-        ),
-        (
-            "microsoft_guest_entra_tenant_unique",
-            "unique(tenant_id, entra_user_id)",
-            "La identidad Microsoft ya está vinculada.",
-        ),
-    ]
+    
+    _microsoft_guest_email_tenant_unique = models.Constraint(
+        'UNIQUE(tenant_id, email)',
+        'El correo ya está registrado en este tenant.',
+    )
+
+    _microsoft_guest_entra_tenant_unique = models.Constraint(
+        'UNIQUE(tenant_id, entra_user_id)',
+        'La identidad Microsoft ya está vinculada.',
+    )
+
 
     @api.constrains("email")
     def _check_email(self):

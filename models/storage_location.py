@@ -21,9 +21,12 @@ class MicrosoftStorageLocation(models.Model):
     manager_user_ids = fields.Many2many("res.users", "microsoft_location_manager_rel", "location_id", "user_id", string="Gestores")
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ("microsoft_location_drive_tenant_unique", "unique(tenant_id, drive_id)", "Esta unidad ya está configurada como ubicación."),
-    ]
+    
+    _microsoft_location_drive_tenant_unique = models.Constraint(
+        'UNIQUE(tenant_id, drive_id)',
+        'Esta unidad ya está configurada como ubicación.',
+    )
+
 
     @api.constrains("tenant_id", "location_type", "site_id", "library_id")
     def _check_location_relations(self):

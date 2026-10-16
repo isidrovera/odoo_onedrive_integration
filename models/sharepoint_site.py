@@ -42,9 +42,12 @@ class SharePointSite(models.Model):
     last_error = fields.Text(readonly=True)
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ("sharepoint_site_graph_tenant_unique", "unique(tenant_id, graph_id)", "El sitio ya está sincronizado."),
-    ]
+    
+    _sharepoint_site_graph_tenant_unique = models.Constraint(
+        'UNIQUE(tenant_id, graph_id)',
+        'El sitio ya está sincronizado.',
+    )
+
 
     @api.constrains("tenant_id", "primary_group_id", "reader_group_ids", "editor_group_ids")
     def _check_group_configuration(self):

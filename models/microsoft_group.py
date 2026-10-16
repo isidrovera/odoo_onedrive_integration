@@ -39,9 +39,12 @@ class MicrosoftGroup(models.Model):
     last_error = fields.Text(readonly=True)
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ("microsoft_group_graph_tenant_unique", "unique(tenant_id, graph_id)", "El grupo Microsoft ya está sincronizado."),
-    ]
+    
+    _microsoft_group_graph_tenant_unique = models.Constraint(
+        'UNIQUE(tenant_id, graph_id)',
+        'El grupo Microsoft ya está sincronizado.',
+    )
+
 
     @api.depends("member_ids", "owner_ids")
     def _compute_counts(self):
