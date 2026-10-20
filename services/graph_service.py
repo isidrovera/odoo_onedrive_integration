@@ -1,317 +1,247 @@
-# services/graph_service.py
-import requests
+# -*- coding: utf-8 -*-
+"""Compatibilidad del explorador OneDrive delegado anterior (Odoo 19).
+
+Las nuevas bibliotecas y permisos deben operar mediante DriveService.
+Esta clase conserva los nombres y respuestas utilizados por integraciones antiguas.
+"""
 import logging
+import re
+import time
+from urllib.parse import quote
+
+import requests
 from odoo.exceptions import UserError
+
+from .graph_client import GraphClient
 
 _logger = logging.getLogger(__name__)
 
 
 class GraphService:
-    """Servicio cliente para Microsoft Graph API (OneDrive Empresarial)."""
-
-    # Tamaño de página por defecto (Graph permite hasta 999 en algunos endpoints)
     DEFAULT_PAGE_SIZE = 200
-
-    # Timeout por request (segundos)
     DEFAULT_TIMEOUT = 60
-
-    # Máximo de páginas a recorrer (evita loops infinitos en carpetas enormes)
     MAX_PAGES = 50
+    UPLOAD_THRESHOLD = 4 * 1024 * 1024
+    UPLOAD_CHUNK_SIZE = 5 * 1024 * 1024  # 320 KiB * 16
+    MAX_UPLOAD_RETRIES = 3
+    _INVALID_NAME = re.compile(r'["*:<>?/\\|\x00-\x1f]')
 
     def __init__(self, account):
+        account.ensure_one()
         self.account = account
         self.base_url = account.env['ir.config_parameter'].sudo().get_param(
-            'onedrive.graph.base_url',
-            default="https://graph.microsoft.com/v1.0"
+            'onedrive.graph.base_url'
+        ) or account.env['ir.config_parameter'].sudo().get_param(
+            'microsoft365.graph.base_url', 'https://graph.microsoft.com/v1.0'
         )
+        # Conservamos el atributo token para compatibilidad con código heredado.
         self.token = account.get_valid_token()
+        self.client = GraphClient(token_provider=self._get_token, env=account.env,
+                                  base_url=self.base_url)
+        self.base_url = self.client.base_url
 
-    # =========================================================
-    # CORE
-    # =========================================================
-    def _headers(self, content_type="application/json"):
-        return {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": content_type,
-        }
+    def _get_token(self):
+        # Renovar token al pedirlo evita que expire a mitad de una operación larga.
+        token = self.account.get_valid_token()
+        if token:
+            self.token = token
+        return self.token
+
+    @staticmethod
+    def _segment(value):
+        value = str(value or '').strip()
+        if not value or len(value) > 512 or any(ord(ch) < 32 for ch in value):
+            raise UserError('Identificador de archivo inválido.')
+        return quote(value, safe='')
+
+    @classmethod
+    def _name(cls, name):
+        if not isinstance(name, str):
+            raise UserError('Debe indicar un nombre de archivo válido.')
+        name = name.strip()
+        if (not name or len(name) > 255 or name in ('.', '..')
+                or name.endswith('.') or cls._INVALID_NAME.search(name)):
+            raise UserError('El nombre contiene caracteres no permitidos por Microsoft 365.')
+        return name
+
+    def _headers(self, content_type='application/json'):
+        return {'Authorization': f'Bearer {self._get_token()}',
+                'Content-Type': content_type}
 
     def _request(self, method, endpoint, timeout=None, **kwargs):
-        """Request a Graph API con manejo unificado de errores."""
-        url = f"{self.base_url}{endpoint}"
-        headers = kwargs.pop("headers", {})
-        headers.update(self._headers())
-        try:
-            response = requests.request(
-                method, url,
-                headers=headers,
-                timeout=timeout or self.DEFAULT_TIMEOUT,
-                **kwargs
-            )
-        except requests.Timeout:
-            _logger.error("Graph timeout: %s %s", method, url)
-            raise UserError("Microsoft Graph no respondió a tiempo")
-        except requests.RequestException as e:
-            _logger.error("Graph network error: %s", e)
-            raise UserError(f"Error de red: {e}")
-
-        data = {}
-        if response.text:
-            try:
-                data = response.json()
-            except Exception:
-                data = {"raw": response.text}
-
-        if response.status_code >= 400:
-            _logger.error("Graph error %s: %s", response.status_code, data)
-            err_msg = data.get("error", {}).get("message") if isinstance(data, dict) else str(data)
-            raise UserError(f"Error Microsoft Graph: {err_msg or data}")
-        return data
+        return self.client.request(method, endpoint,
+                                   timeout=timeout or self.DEFAULT_TIMEOUT, **kwargs)
 
     def _request_absolute_url(self, url):
-        """Para nextLinks de paginación que devuelve Graph como URL absoluta."""
-        try:
-            response = requests.get(
-                url,
-                headers=self._headers(),
-                timeout=self.DEFAULT_TIMEOUT,
-            )
-        except requests.RequestException as e:
-            _logger.error("Graph paginated network error: %s", e)
-            raise UserError(f"Error de red en paginación: {e}")
-
-        if response.status_code >= 400:
-            _logger.error("Graph paginated error %s: %s", response.status_code, response.text)
-            raise UserError(f"Error Microsoft Graph (paginación): {response.status_code}")
-        return response.json()
+        return self.client.request('GET', url, absolute=True)
 
     def _fetch_all_pages(self, endpoint):
-        """
-        Pagina automáticamente respuestas de Graph siguiendo @odata.nextLink.
-        Retorna {"value": [...todos los items...]}.
-        """
-        all_values = []
-        next_url = endpoint
-        page = 0
+        values = self.client.fetch_all(endpoint, max_pages=self.MAX_PAGES)
+        return {'value': values,
+                'page_count': None}  # El cliente común devuelve todos los registros.
 
-        while next_url and page < self.MAX_PAGES:
-            page += 1
-            if next_url.startswith("http"):
-                data = self._request_absolute_url(next_url)
-            else:
-                data = self._request("GET", next_url)
-            values = data.get("value", []) or []
-            all_values.extend(values)
-            next_url = data.get("@odata.nextLink")
-            if not next_url:
-                break
-
-        if page >= self.MAX_PAGES and next_url:
-            _logger.warning(
-                "Se alcanzó el máximo de páginas (%s). Algunos items pueden no aparecer.",
-                self.MAX_PAGES
-            )
-
-        return {"value": all_values, "page_count": page}
-
-    # =========================================================
-    # LIST (con paginación, sin thumbnails para velocidad)
-    # =========================================================
     def list_root(self):
-        endpoint = f"/me/drive/root/children?$top={self.DEFAULT_PAGE_SIZE}"
-        return self._fetch_all_pages(endpoint)
+        return self._fetch_all_pages(f'/me/drive/root/children?$top={self.DEFAULT_PAGE_SIZE}')
 
     def list_children(self, item_id):
-        endpoint = f"/me/drive/items/{item_id}/children?$top={self.DEFAULT_PAGE_SIZE}"
-        return self._fetch_all_pages(endpoint)
-
-    def get_item(self, item_id):
-        return self._request("GET", f"/me/drive/items/{item_id}")
-
-    # =========================================================
-    # SEARCH (también con paginación, hasta MAX_PAGES)
-    # =========================================================
-    def search(self, query):
-        # Sanitizar comillas simples: en Graph, q='...' con apóstrofe rompe
-        safe_query = (query or "").replace("'", "''")
-        endpoint = f"/me/drive/root/search(q='{safe_query}')?$top={self.DEFAULT_PAGE_SIZE}"
-        return self._fetch_all_pages(endpoint)
-
-    # =========================================================
-    # CREATE / RENAME / MOVE / COPY
-    # =========================================================
-    def create_folder(self, name, parent_id=None):
-        endpoint = "/me/drive/root/children" if not parent_id \
-            else f"/me/drive/items/{parent_id}/children"
-        payload = {
-            "name": name,
-            "folder": {},
-            "@microsoft.graph.conflictBehavior": "rename",
-        }
-        return self._request("POST", endpoint, json=payload)
-
-    def rename_item(self, item_id, new_name):
-        return self._request(
-            "PATCH",
-            f"/me/drive/items/{item_id}",
-            json={"name": new_name},
+        return self._fetch_all_pages(
+            f'/me/drive/items/{self._segment(item_id)}/children?$top={self.DEFAULT_PAGE_SIZE}'
         )
 
+    def get_item(self, item_id):
+        return self._request('GET', f'/me/drive/items/{self._segment(item_id)}')
+
+    def search(self, query):
+        if not isinstance(query, str) or not query.strip():
+            return {'value': [], 'page_count': 0}
+        if len(query) > 200:
+            raise UserError('La búsqueda excede el límite permitido.')
+        escaped = query.strip().replace("'", "''")
+        encoded = quote(escaped, safe="'")
+        return self._fetch_all_pages(
+            f"/me/drive/root/search(q='{encoded}')?$top={self.DEFAULT_PAGE_SIZE}"
+        )
+
+    def create_folder(self, name, parent_id=None):
+        endpoint = ('/me/drive/root/children' if not parent_id else
+                    f'/me/drive/items/{self._segment(parent_id)}/children')
+        return self._request('POST', endpoint, json={
+            'name': self._name(name), 'folder': {},
+            '@microsoft.graph.conflictBehavior': 'rename',
+        })
+
+    def rename_item(self, item_id, new_name):
+        return self._request('PATCH', f'/me/drive/items/{self._segment(item_id)}',
+                             json={'name': self._name(new_name)})
+
     def move_item(self, item_id, target_parent_id):
-        payload = {"parentReference": {"id": target_parent_id}}
-        return self._request("PATCH", f"/me/drive/items/{item_id}", json=payload)
+        return self._request('PATCH', f'/me/drive/items/{self._segment(item_id)}',
+                             json={'parentReference': {'id': str(target_parent_id)}})
 
     def copy_item(self, item_id, target_parent_id, new_name=None):
-        payload = {"parentReference": {"id": target_parent_id}}
+        payload = {'parentReference': {'id': str(target_parent_id)}}
         if new_name:
-            payload["name"] = new_name
-        return self._request("POST", f"/me/drive/items/{item_id}/copy", json=payload)
+            payload['name'] = self._name(new_name)
+        # Graph devuelve 202 para copias asíncronas; conservar comportamiento.
+        return self._request('POST', f'/me/drive/items/{self._segment(item_id)}/copy',
+                             json=payload)
 
-    # =========================================================
-    # DELETE
-    # =========================================================
     def delete_item(self, item_id):
-        return self._request("DELETE", f"/me/drive/items/{item_id}")
+        return self._request('DELETE', f'/me/drive/items/{self._segment(item_id)}')
 
-    # =========================================================
-    # DOWNLOAD
-    # =========================================================
     def get_download_url(self, item_id):
-        data = self._request("GET", f"/me/drive/items/{item_id}")
-        if "folder" in data:
-            raise UserError("Usa get_folder_download_url para carpetas")
-        url = data.get("@microsoft.graph.downloadUrl")
+        data = self.get_item(item_id)
+        if 'folder' in data:
+            raise UserError('La descarga de carpetas requiere un proceso ZIP específico.')
+        url = data.get('@microsoft.graph.downloadUrl')
         if not url:
-            raise UserError(f"No se pudo obtener enlace de descarga")
+            raise UserError('No se pudo obtener el enlace de descarga.')
         return url
 
     def get_folder_download_url(self, item_id):
-        """URL del endpoint que devuelve un ZIP de la carpeta."""
-        return f"{self.base_url}/me/drive/items/{item_id}/content"
+        # Compatibilidad: se devuelve la ruta Graph; NO es un enlace ZIP público.
+        return f'{self.base_url}/me/drive/items/{self._segment(item_id)}/content'
 
-    # =========================================================
-    # THUMBNAIL (bajo demanda, no en listados)
-    # =========================================================
     def get_thumbnail_url(self, item_id, size='medium'):
+        if size not in ('small', 'medium', 'large'):
+            raise UserError('Tamaño de miniatura inválido.')
         try:
-            data = self._request("GET", f"/me/drive/items/{item_id}/thumbnails")
-            thumbs = data.get('value', [])
-            if thumbs and size in thumbs[0]:
-                return thumbs[0][size].get('url')
-        except Exception as e:
-            _logger.debug("No thumbnail for %s: %s", item_id, e)
+            data = self._request('GET',
+                f'/me/drive/items/{self._segment(item_id)}/thumbnails')
+            thumbnails = data.get('value', [])
+            return thumbnails[0].get(size, {}).get('url') if thumbnails else None
+        except UserError as exc:
+            _logger.debug('Miniatura no disponible: %s', exc)
             return None
-        return None
 
-    # =========================================================
-    # PREVIEW
-    # =========================================================
     def get_preview_url(self, item_id):
-        return self._request("POST", f"/me/drive/items/{item_id}/preview", json={})
+        return self._request('POST',
+                             f'/me/drive/items/{self._segment(item_id)}/preview', json={})
 
-    # =========================================================
-    # SHARE
-    # =========================================================
-    def create_share_link(self, item_id, share_type='view', scope='anonymous'):
-        payload = {"type": share_type, "scope": scope}
-        return self._request("POST", f"/me/drive/items/{item_id}/createLink", json=payload)
-
-    # =========================================================
-    # UPLOAD
-    #   - <4MB: PUT directo
-    #   - >=4MB: upload session con chunks (más robusto para archivos grandes)
-    # =========================================================
-    UPLOAD_THRESHOLD = 4 * 1024 * 1024  # 4 MB
-    UPLOAD_CHUNK_SIZE = 5 * 1024 * 1024  # 5 MB chunks
+    def create_share_link(self, item_id, share_type='view', scope='organization'):
+        if share_type not in ('view', 'edit'):
+            raise UserError('Tipo de enlace no permitido.')
+        if scope != 'organization':
+            raise UserError('Los enlaces anónimos están deshabilitados por seguridad.')
+        return self._request('POST',
+                             f'/me/drive/items/{self._segment(item_id)}/createLink',
+                             json={'type': share_type, 'scope': scope})
 
     def upload_file(self, filename, file_content, parent_id=None):
-        size = len(file_content)
-        if size < self.UPLOAD_THRESHOLD:
+        filename = self._name(filename)
+        if not isinstance(file_content, (bytes, bytearray)):
+            raise UserError('El archivo debe contener datos binarios.')
+        if len(file_content) < self.UPLOAD_THRESHOLD:
             return self._upload_small(filename, file_content, parent_id)
         return self._upload_large(filename, file_content, parent_id)
 
-    def _upload_small(self, filename, file_content, parent_id=None):
-        """PUT directo para archivos pequeños (<4MB)."""
-        if parent_id:
-            endpoint = f"/me/drive/items/{parent_id}:/{filename}:/content"
-        else:
-            endpoint = f"/me/drive/root:/{filename}:/content"
-        url = f"{self.base_url}{endpoint}"
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/octet-stream",
-        }
-        try:
-            response = requests.put(
-                url,
-                headers=headers,
-                data=file_content,
-                timeout=self.DEFAULT_TIMEOUT,
-            )
-        except requests.RequestException as e:
-            raise UserError(f"Error red al subir: {e}")
+    def _item_path(self, filename, parent_id=None):
+        base = (f'/me/drive/items/{self._segment(parent_id)}' if parent_id
+                else '/me/drive/root')
+        return f'{base}:/{quote(self._name(filename), safe="")}:'
 
-        if response.status_code >= 400:
-            raise UserError(f"Error subiendo: {response.text}")
-        return response.json()
+    def _upload_small(self, filename, file_content, parent_id=None):
+        return self._request('PUT', self._item_path(filename, parent_id) + '/content',
+                             headers={'Content-Type': 'application/octet-stream'},
+                             data=file_content, timeout=self.DEFAULT_TIMEOUT)
 
     def _upload_large(self, filename, file_content, parent_id=None):
-        """Upload session con chunks para archivos grandes (>=4MB)."""
-        # 1. Crear sesión
-        if parent_id:
-            session_endpoint = f"/me/drive/items/{parent_id}:/{filename}:/createUploadSession"
-        else:
-            session_endpoint = f"/me/drive/root:/{filename}:/createUploadSession"
-        session = self._request(
-            "POST",
-            session_endpoint,
-            json={
-                "item": {
-                    "@microsoft.graph.conflictBehavior": "rename",
-                    "name": filename,
-                }
-            },
-        )
-        upload_url = session.get("uploadUrl")
+        session = self._request('POST',
+            self._item_path(filename, parent_id) + '/createUploadSession',
+            json={'item': {'@microsoft.graph.conflictBehavior': 'rename',
+                           'name': self._name(filename)}})
+        upload_url = session.get('uploadUrl')
         if not upload_url:
-            raise UserError("No se pudo crear sesión de upload")
-
-        # 2. Subir en chunks
-        total_size = len(file_content)
-        chunk_size = self.UPLOAD_CHUNK_SIZE
+            raise UserError('Microsoft no devolvió una sesión de subida.')
+        # URL prefirmada por Microsoft: nunca enviar el token OAuth ni seguir
+        # redirecciones. El endpoint debe pertenecer a servicios Microsoft.
+        from urllib.parse import urlsplit
+        parsed = urlsplit(upload_url)
+        hostname = (parsed.hostname or '').lower()
+        if (parsed.scheme != 'https' or parsed.port not in (None, 443)
+                or not (hostname.endswith('.sharepoint.com')
+                        or hostname.endswith('.up.1drv.com')
+                        or hostname.endswith('.onedrive.com')
+                        or hostname == 'api.onedrive.com')):
+            raise UserError('Microsoft devolvió una sesión de subida no autorizada.')
+        total = len(file_content)
         offset = 0
-        last_response = None
-
-        while offset < total_size:
-            end = min(offset + chunk_size, total_size) - 1
-            chunk = file_content[offset:end + 1]
-            content_range = f"bytes {offset}-{end}/{total_size}"
+        last = None
+        while offset < total:
+            end = min(offset + self.UPLOAD_CHUNK_SIZE, total)
             headers = {
-                "Content-Length": str(len(chunk)),
-                "Content-Range": content_range,
+                'Content-Length': str(end - offset),
+                'Content-Range': f'bytes {offset}-{end - 1}/{total}',
             }
-            try:
-                response = requests.put(
-                    upload_url,
-                    headers=headers,
-                    data=chunk,
-                    timeout=self.DEFAULT_TIMEOUT * 2,
-                )
-            except requests.RequestException as e:
-                raise UserError(f"Error red en chunk {offset}: {e}")
-
-            if response.status_code >= 400:
-                # Limpiar sesión si falla
+            for attempt in range(self.MAX_UPLOAD_RETRIES):
                 try:
-                    requests.delete(upload_url, timeout=10)
-                except Exception:
-                    pass
-                raise UserError(f"Error subiendo chunk: {response.text}")
-
-            last_response = response
-            offset = end + 1
-
-        # 3. Última respuesta tiene los metadatos del archivo final
-        try:
-            return last_response.json()
-        except Exception:
-            return {"status": "uploaded", "name": filename}
+                    response = requests.put(
+                        upload_url, headers=headers, data=file_content[offset:end],
+                        timeout=self.DEFAULT_TIMEOUT * 2, allow_redirects=False,
+                    )
+                except (requests.Timeout, requests.ConnectionError) as exc:
+                    if attempt + 1 == self.MAX_UPLOAD_RETRIES:
+                        raise UserError('Se interrumpió la subida a Microsoft.') from exc
+                    time.sleep(2 ** attempt)
+                    continue
+                if response.status_code in (429, 500, 502, 503, 504):
+                    response.close()
+                    if attempt + 1 == self.MAX_UPLOAD_RETRIES:
+                        raise UserError('Microsoft no pudo completar la subida.')
+                    time.sleep(2 ** attempt)
+                    continue
+                if response.status_code not in (200, 201, 202):
+                    response.close()
+                    raise UserError(f'Microsoft rechazó un fragmento ({response.status_code}).')
+                try:
+                    last = response.json() if response.content else {}
+                except ValueError:
+                    last = {}
+                finally:
+                    response.close()
+                break
+            offset = end
+        if not isinstance(last, dict) or not last.get('id'):
+            # Algunos servidores devuelven 202 durante sesiones pendientes.
+            raise UserError('No se recibió confirmación final de la subida.')
+        return last

@@ -3,6 +3,7 @@ import logging
 import secrets
 from datetime import timedelta
 from urllib.parse import urlencode, urlparse
+from uuid import UUID
 
 import requests
 
@@ -83,14 +84,26 @@ class MicrosoftTenant(models.Model):
         for record in self:
             record.redirect_uri = f"{base_url}/microsoft/oauth/callback" if base_url else False
 
+    @api.constrains("tenant_id", "client_id")
+    def _check_identifiers(self):
+        for record in self:
+            for value, label in ((record.tenant_id, "Tenant ID"), (record.client_id, "Client ID")):
+                try:
+                    UUID((value or "").strip())
+                except (ValueError, AttributeError, TypeError) as error:
+                    raise ValidationError(f"{label} debe ser un identificador UUID válido.") from error
+
     @api.constrains("sharepoint_root_url")
     def _check_sharepoint_root_url(self):
         for record in self:
             if not record.sharepoint_root_url:
                 continue
             parsed = urlparse(record.sharepoint_root_url.strip())
-            if parsed.scheme != "https" or not parsed.netloc or parsed.path not in ("", "/"):
-                raise ValidationError("La URL raíz debe tener el formato https://empresa.sharepoint.com")
+            if (parsed.scheme != "https" or not parsed.hostname
+                    or not parsed.hostname.lower().endswith(".sharepoint.com")
+                    or parsed.port not in (None, 443) or parsed.username or parsed.password
+                    or parsed.query or parsed.fragment or parsed.path not in ("", "/")):
+                raise ValidationError("La URL raíz debe ser HTTPS y pertenecer a un dominio *.sharepoint.com.")
 
     def _check_admin(self):
         if not self.env.user.has_group("odoo_onedrive_integration.group_microsoft_admin"):
@@ -98,7 +111,11 @@ class MicrosoftTenant(models.Model):
 
     def _authority(self):
         self.ensure_one()
-        return f"https://login.microsoftonline.com/{self.tenant_id}"
+        try:
+            tenant_uuid = str(UUID((self.tenant_id or "").strip()))
+        except (ValueError, AttributeError, TypeError) as error:
+            raise UserError("Tenant ID inválido. Debe ser un GUID de Microsoft Entra.") from error
+        return f"https://login.microsoftonline.com/{tenant_uuid}"
 
     def _delegated_scope(self):
         return self.env["ir.config_parameter"].sudo().get_param(
@@ -108,6 +125,7 @@ class MicrosoftTenant(models.Model):
 
     def _new_oauth_state(self):
         self.ensure_one()
+        self._check_admin()
         state = "t." + secrets.token_urlsafe(40)
         self.sudo().write({
             "oauth_state": state,
@@ -135,26 +153,41 @@ class MicrosoftTenant(models.Model):
     def _token_request(self, data):
         self.ensure_one()
         try:
-            response = requests.post(f"{self._authority()}/oauth2/v2.0/token", data=data, timeout=30)
+            response = requests.post(
+                f"{self._authority()}/oauth2/v2.0/token", data=data,
+                timeout=(10, 30), allow_redirects=False,
+            )
             result = response.json()
         except requests.RequestException as error:
             raise UserError(f"No se pudo conectar con Microsoft: {error}") from error
         except ValueError as error:
             raise UserError("Microsoft devolvió una respuesta inválida al solicitar el token.") from error
-        if response.status_code >= 400:
+        if not isinstance(result, dict):
+            raise UserError("Microsoft devolvió una respuesta de token incorrecta.")
+        if response.status_code >= 400 or response.status_code < 200 or response.status_code >= 300:
             message = result.get("error_description") or result.get("error") or "Solicitud rechazada"
-            _logger.warning("OAuth Microsoft rechazado para tenant %s: %s", self.id, message)
-            raise UserError(f"Microsoft rechazó la autenticación: {message}")
+            _logger.warning("Token Microsoft rechazado para tenant id=%s; código HTTP=%s", self.id, response.status_code)
+            raise UserError(f"Microsoft rechazó la autenticación: {str(message)[:400]}")
+        if not result.get("access_token"):
+            raise UserError("Microsoft no devolvió un access_token válido.")
         return result
 
     def exchange_code_for_token(self, code, state):
         self.ensure_one()
+        self._check_admin()
         if not code or not state or state != self.oauth_state:
             raise UserError("La respuesta OAuth no corresponde a esta conexión.")
         if not self.oauth_state_expiry or fields.Datetime.now() > self.oauth_state_expiry:
             raise UserError("La solicitud OAuth venció. Vuelva a conectar la cuenta.")
         if self.oauth_state_user_id != self.env.user:
             raise AccessError("La conexión debe finalizarla el administrador que la inició.")
+        # Consume el estado antes de la llamada exterior para impedir reutilización.
+        # El estado expirado debe renovarse iniciando OAuth otra vez.
+        self.sudo().write({
+            "oauth_state": False,
+            "oauth_state_expiry": False,
+            "oauth_state_user_id": False,
+        })
         result = self._token_request({
             "client_id": self.client_id,
             "client_secret": self.client_secret,
@@ -167,6 +200,9 @@ class MicrosoftTenant(models.Model):
         return True
 
     def _save_delegated_token(self, result):
+        self.ensure_one()
+        if not result.get("access_token"):
+            raise UserError("Microsoft no devolvió un token delegado.")
         expires = int(result.get("expires_in", 3600))
         self.sudo().write({
             "access_token": result.get("access_token"),
@@ -180,6 +216,7 @@ class MicrosoftTenant(models.Model):
 
     def refresh_access_token(self):
         self.ensure_one()
+        self._check_admin()
         if not self.refresh_token:
             raise UserError("No existe refresh token. Conecte nuevamente la cuenta.")
         result = self._token_request({
@@ -193,22 +230,37 @@ class MicrosoftTenant(models.Model):
         return True
 
     def get_valid_token(self):
-        """Compatibilidad con el explorador OneDrive existente."""
+        """Compatibilidad con el explorador OneDrive existente.
+
+        El token histórico solo puede obtenerse por administradores autorizados.
+        Los usuarios normales usan microsoft.user.connection y su token propio.
+        """
         self.ensure_one()
+        self._check_admin()
         if self.refresh_token and (not self.access_token or not self.token_expiry or fields.Datetime.now() >= self.token_expiry):
             self.sudo().refresh_access_token()
-        if not self.access_token:
-            raise UserError("La cuenta OneDrive todavía no está conectada con un usuario Microsoft.")
+        if not self.access_token or not self.token_expiry or fields.Datetime.now() >= self.token_expiry:
+            raise UserError("La cuenta OneDrive no dispone de un token delegado vigente.")
         return self.sudo().access_token
 
     def get_app_token(self, resource="graph"):
         self.ensure_one()
+        if resource not in ("graph", "sharepoint"):
+            raise UserError("Recurso de autenticación Microsoft no permitido.")
+        # La seguridad de los endpoints se aplica en los modelos y controladores.
+        # No se expone este método como ruta pública ni se devuelve el token al cliente.
         now = fields.Datetime.now()
         if resource == "sharepoint":
             if not self.sharepoint_root_url:
                 raise UserError("Configure la URL raíz de SharePoint.")
             token_field, expiry_field = "sharepoint_access_token", "sharepoint_token_expiry"
-            scope = self.sharepoint_root_url.rstrip("/") + "/.default"
+            parsed = urlparse(self.sharepoint_root_url.strip())
+            if (parsed.scheme != "https" or not parsed.hostname
+                    or not parsed.hostname.lower().endswith(".sharepoint.com")
+                    or parsed.port not in (None, 443) or parsed.username or parsed.password
+                    or parsed.path not in ("", "/") or parsed.query or parsed.fragment):
+                raise UserError("La URL raíz SharePoint no es válida.")
+            scope = f"https://{parsed.hostname}/.default"
         else:
             token_field, expiry_field = "app_access_token", "app_token_expiry"
             scope = "https://graph.microsoft.com/.default"
@@ -222,6 +274,8 @@ class MicrosoftTenant(models.Model):
             "grant_type": "client_credentials",
             "scope": scope,
         })
+        if not result.get("access_token"):
+            raise UserError("Microsoft no devolvió un token de aplicación.")
         expires = int(result.get("expires_in", 3600))
         self.sudo().write({
             token_field: result.get("access_token"),
@@ -249,9 +303,15 @@ class MicrosoftTenant(models.Model):
         from ..services.directory_service import DirectoryService
         from ..services.sharepoint_service import SharePointService
         for tenant in self:
-            DirectoryService(tenant).sync_groups()
-            SharePointService(tenant).sync_sites()
-            tenant.sudo().write({"last_sync": fields.Datetime.now(), "last_error": False})
+            try:
+                DirectoryService(tenant).sync_groups()
+                SharePointService(tenant).sync_sites()
+                tenant.sudo().write({"last_sync": fields.Datetime.now(), "last_error": False})
+            except Exception as error:
+                _logger.exception("Error sincronizando Microsoft 365 tenant id=%s", tenant.id)
+                # Registrar diagnóstico mediante cursor aislado no es seguro aquí;
+                # no silenciamos el fallo ni persistimos datos incompletos.
+                raise UserError("Falló la sincronización de grupos o sitios: %s" % str(error)[:400]) from error
         return self._notification("Grupos y sitios sincronizados.", "success")
 
     def action_create_onedrive_location(self):

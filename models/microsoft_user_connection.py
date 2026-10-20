@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
+"""Conexiones delegadas Microsoft 365 por usuario de Odoo 19."""
+import logging
 import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
 
-from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo import api, fields, models, _
+from odoo.exceptions import AccessError, UserError, ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class MicrosoftUserConnection(models.Model):
@@ -12,7 +16,10 @@ class MicrosoftUserConnection(models.Model):
     _description = "Conexión personal Microsoft"
     _order = "user_id, tenant_id"
 
-    user_id = fields.Many2one("res.users", required=True, default=lambda self: self.env.user, ondelete="cascade", index=True)
+    user_id = fields.Many2one(
+        "res.users", required=True, default=lambda self: self.env.user,
+        ondelete="cascade", index=True,
+    )
     tenant_id = fields.Many2one("onedrive.account", required=True, ondelete="cascade", index=True)
     email = fields.Char(required=True)
     entra_user_id = fields.Char(string="ID Microsoft", copy=False, index=True)
@@ -21,24 +28,41 @@ class MicrosoftUserConnection(models.Model):
     token_expiry = fields.Datetime(copy=False, groups="odoo_onedrive_integration.group_microsoft_admin")
     oauth_state = fields.Char(copy=False, groups="odoo_onedrive_integration.group_microsoft_admin")
     oauth_state_expiry = fields.Datetime(copy=False, groups="odoo_onedrive_integration.group_microsoft_admin")
-    state = fields.Selection(
-        [("not_connected", "Sin conectar"), ("connected", "Conectado"), ("expired", "Requiere conexión"), ("error", "Error")],
-        default="not_connected", required=True, readonly=True,
-    )
+    state = fields.Selection([
+        ("not_connected", "Sin conectar"),
+        ("connected", "Conectado"),
+        ("expired", "Requiere conexión"),
+        ("error", "Error"),
+    ], default="not_connected", required=True, readonly=True)
     last_error = fields.Text(readonly=True)
     last_connected = fields.Datetime(readonly=True)
     active = fields.Boolean(default=True)
 
-    
     _microsoft_user_tenant_unique = models.Constraint(
-        'UNIQUE(user_id, tenant_id)',
-        'El usuario ya tiene una conexión para este tenant.',
+        "UNIQUE(user_id, tenant_id)",
+        "El usuario ya tiene una conexión para este tenant.",
     )
 
+    @api.constrains("email")
+    def _check_email(self):
+        for record in self:
+            value = (record.email or "").strip()
+            if not value or "@" not in value or len(value) > 254 or any(c.isspace() for c in value):
+                raise ValidationError(_("Introduzca un correo electrónico Microsoft válido."))
+
+    @api.constrains("user_id", "tenant_id")
+    def _check_user_and_tenant(self):
+        for record in self:
+            if record.user_id.share:
+                raise ValidationError(_("La conexión Microsoft debe pertenecer a un usuario interno de Odoo."))
 
     def _check_owner_or_admin(self):
-        if self.user_id != self.env.user and not self.env.user.has_group("odoo_onedrive_integration.group_microsoft_admin"):
-            raise AccessError("No puede administrar la conexión Microsoft de otro usuario.")
+        self.ensure_one()
+        user = self.env.user
+        if self.user_id != user and not user.has_group("odoo_onedrive_integration.group_microsoft_admin"):
+            raise AccessError(_("No puede administrar la conexión Microsoft de otro usuario."))
+        if not self.active or not self.tenant_id.active:
+            raise UserError(_("La conexión o el tenant Microsoft están desactivados."))
 
     def _scope(self):
         return self.env["ir.config_parameter"].sudo().get_param(
@@ -49,8 +73,14 @@ class MicrosoftUserConnection(models.Model):
     def get_auth_url(self):
         self.ensure_one()
         self._check_owner_or_admin()
+        if not self.tenant_id.client_id or not self.tenant_id.redirect_uri:
+            raise UserError(_("Configure primero la aplicación Microsoft y su URL de retorno."))
         state = "u." + secrets.token_urlsafe(40)
-        self.sudo().write({"oauth_state": state, "oauth_state_expiry": fields.Datetime.now() + timedelta(minutes=10)})
+        self.sudo().write({
+            "oauth_state": state,
+            "oauth_state_expiry": fields.Datetime.now() + timedelta(minutes=10),
+            "last_error": False,
+        })
         params = {
             "client_id": self.tenant_id.client_id,
             "response_type": "code",
@@ -58,16 +88,25 @@ class MicrosoftUserConnection(models.Model):
             "response_mode": "query",
             "scope": self._scope(),
             "state": state,
-            "login_hint": self.email,
+            "login_hint": self.email.strip(),
         }
         return f"{self.tenant_id._authority()}/oauth2/v2.0/authorize?{urlencode(params)}"
 
     def exchange_code_for_token(self, code, state):
         self.ensure_one()
-        if not state or state != self.oauth_state or not code:
-            raise UserError("La respuesta OAuth no corresponde a esta conexión personal.")
-        if not self.oauth_state_expiry or fields.Datetime.now() > self.oauth_state_expiry:
-            raise UserError("La conexión venció. Vuelva a iniciarla desde Odoo.")
+        self._check_owner_or_admin()
+        # El controlador comprueba además que el callback pertenece al usuario Odoo.
+        if self.user_id != self.env.user:
+            raise AccessError(_("El retorno OAuth debe completarlo el propietario de la conexión."))
+        record = self.sudo()
+        if not state or not secrets.compare_digest(str(state), str(record.oauth_state or "")) or not code:
+            raise UserError(_("La respuesta OAuth no corresponde a esta conexión personal."))
+        if not record.oauth_state_expiry or fields.Datetime.now() > record.oauth_state_expiry:
+            raise UserError(_("La conexión venció. Vuelva a iniciarla desde Odoo."))
+
+        # Consumir el estado antes de solicitar el token. En errores la transacción
+        # habitual de Odoo se revierte, por lo que no se informa falsamente conexión.
+        record.write({"oauth_state": False, "oauth_state_expiry": False})
         result = self.tenant_id._token_request({
             "client_id": self.tenant_id.client_id,
             "client_secret": self.tenant_id.client_secret,
@@ -76,24 +115,39 @@ class MicrosoftUserConnection(models.Model):
             "grant_type": "authorization_code",
             "scope": self._scope(),
         })
-        self._save_token(result)
+        if not result.get("access_token"):
+            raise UserError(_("Microsoft no devolvió un token válido."))
+
         from ..services.graph_client import GraphClient
-        profile = GraphClient(token=self.access_token, env=self.env).request("GET", "/me?$select=id,displayName,mail,userPrincipalName")
-        self.sudo().write({
-            "entra_user_id": profile.get("id"),
-            # Para invitados, el UPN suele ser una dirección #EXT#. Conservamos el
-            # correo real de Odoo cuando Microsoft no publica el atributo mail.
+        profile = GraphClient(token=result["access_token"], env=self.env).request(
+            "GET", "/me", params={"$select": "id,displayName,mail,userPrincipalName"},
+        )
+        if not isinstance(profile, dict) or not profile.get("id"):
+            raise UserError(_("No se pudo identificar la cuenta Microsoft conectada."))
+        self._save_token(result)
+        record.write({
+            "entra_user_id": profile["id"],
+            # Invitados B2B pueden tener un UPN #EXT#; conservar su correo real.
             "email": profile.get("mail") or self.email,
             "last_connected": fields.Datetime.now(),
         })
+        _logger.info("Microsoft 365: conexión delegada establecida usuario=%s tenant=%s", self.user_id.id, self.tenant_id.id)
         return True
 
     def _save_token(self, result):
-        expires = int(result.get("expires_in", 3600))
+        self.ensure_one()
+        token = result.get("access_token") if isinstance(result, dict) else None
+        if not token:
+            raise UserError(_("Microsoft no devolvió un access_token válido."))
+        try:
+            expires = int(result.get("expires_in", 3600))
+        except (ValueError, TypeError):
+            expires = 3600
+        current_refresh = self.sudo().refresh_token
         self.sudo().write({
-            "access_token": result.get("access_token"),
-            "refresh_token": result.get("refresh_token") or self.refresh_token,
-            "token_expiry": fields.Datetime.now() + timedelta(seconds=max(expires - 90, 60)),
+            "access_token": token,
+            "refresh_token": result.get("refresh_token") or current_refresh,
+            "token_expiry": fields.Datetime.now() + timedelta(seconds=max(expires - 90, 1)),
             "oauth_state": False,
             "oauth_state_expiry": False,
             "state": "connected",
@@ -102,30 +156,44 @@ class MicrosoftUserConnection(models.Model):
 
     def refresh_access_token(self):
         self.ensure_one()
-        if not self.refresh_token:
-            raise UserError("Debe conectar nuevamente su cuenta Microsoft.")
+        self._check_owner_or_admin()
+        refresh = self.sudo().refresh_token
+        if not refresh:
+            raise UserError(_("Debe conectar nuevamente su cuenta Microsoft."))
         try:
             result = self.tenant_id._token_request({
                 "client_id": self.tenant_id.client_id,
                 "client_secret": self.tenant_id.client_secret,
-                "refresh_token": self.refresh_token,
+                "refresh_token": refresh,
                 "grant_type": "refresh_token",
                 "scope": self._scope(),
             })
             self._save_token(result)
-        except Exception as error:
-            self.sudo().write({"state": "error", "last_error": str(error)})
-            raise
+        except Exception:
+            # No registrar tokens ni respuestas HTTP potencialmente sensibles.
+            _logger.warning("Microsoft 365: no se pudo renovar token usuario=%s tenant=%s", self.user_id.id, self.tenant_id.id)
+            self.sudo().write({
+                "access_token": False,
+                "token_expiry": False,
+                "state": "expired",
+                "last_error": _("No fue posible renovar el token. Vuelva a conectar Microsoft."),
+            })
+            # Evitar lanzar aquí una excepción que revierta este estado.
+            return False
         return True
 
     def get_valid_token(self):
         self.ensure_one()
         self._check_owner_or_admin()
-        if self.refresh_token and (not self.access_token or not self.token_expiry or fields.Datetime.now() >= self.token_expiry):
-            self.refresh_access_token()
-        if not self.access_token:
-            raise UserError("Conecte su cuenta Microsoft para continuar.")
-        return self.sudo().access_token
+        record = self.sudo()
+        now = fields.Datetime.now()
+        if not record.access_token or not record.token_expiry or now >= record.token_expiry:
+            if not record.refresh_token or not self.refresh_access_token():
+                raise UserError(_("La conexión Microsoft venció. Acceda a Mi conexión y vuelva a conectar."))
+            record.invalidate_recordset(["access_token", "token_expiry", "state"])
+        if not record.access_token or not record.token_expiry or fields.Datetime.now() >= record.token_expiry:
+            raise UserError(_("No existe un token Microsoft vigente."))
+        return record.access_token
 
     def action_connect(self):
         self.ensure_one()
@@ -135,7 +203,14 @@ class MicrosoftUserConnection(models.Model):
         self.ensure_one()
         self._check_owner_or_admin()
         self.sudo().write({
-            "access_token": False, "refresh_token": False, "token_expiry": False,
-            "oauth_state": False, "oauth_state_expiry": False, "state": "not_connected",
+            "access_token": False,
+            "refresh_token": False,
+            "token_expiry": False,
+            "oauth_state": False,
+            "oauth_state_expiry": False,
+            "entra_user_id": False,
+            "state": "not_connected",
+            "last_error": False,
         })
+        _logger.info("Microsoft 365: conexión delegada desconectada usuario=%s tenant=%s", self.user_id.id, self.tenant_id.id)
         return True
