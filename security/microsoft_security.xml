@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Categoría y privilegio propios de Odoo 19. Mantener los XML IDs
+         originales evita alterar los grupos ya asignados en producción. -->
     <record id="module_category_microsoft_365" model="ir.module.category">
         <field name="name">Microsoft 365</field>
         <field name="sequence">35</field>
@@ -11,12 +13,17 @@
         <field name="category_id" ref="module_category_microsoft_365"/>
     </record>
 
+    <!-- Lector: consulta, búsqueda, vista previa y descarga. Las autorizaciones
+         por biblioteca se validan en microsoft.storage.location y en los
+         controladores; pertenecer a este grupo no concede acceso global. -->
     <record id="group_microsoft_document_user" model="res.groups">
         <field name="name">Usuario documental</field>
         <field name="privilege_id" ref="res_groups_privilege_microsoft_365"/>
         <field name="sequence">10</field>
     </record>
 
+    <!-- Editor: hereda lectura. La eliminación y la compartición se mantienen
+         reservadas al gestor en los controles del servidor. -->
     <record id="group_microsoft_document_editor" model="res.groups">
         <field name="name">Editor documental</field>
         <field name="privilege_id" ref="res_groups_privilege_microsoft_365"/>
@@ -24,6 +31,8 @@
         <field name="implied_ids" eval="[(4, ref('group_microsoft_document_user'))]"/>
     </record>
 
+    <!-- Gestor: hereda las funciones de edición. Sigue sujeto a permisos de
+         ubicación, salvo cuando también tiene el grupo administrador. -->
     <record id="group_microsoft_document_manager" model="res.groups">
         <field name="name">Gestor documental</field>
         <field name="privilege_id" ref="res_groups_privilege_microsoft_365"/>
@@ -31,6 +40,8 @@
         <field name="implied_ids" eval="[(4, ref('group_microsoft_document_editor'))]"/>
     </record>
 
+    <!-- Administrador: configura tenants, invitados, grupos y sitios. No se
+         asigna automáticamente a usuarios documentales ni a invitados. -->
     <record id="group_microsoft_admin" model="res.groups">
         <field name="name">Administrador Microsoft 365</field>
         <field name="privilege_id" ref="res_groups_privilege_microsoft_365"/>

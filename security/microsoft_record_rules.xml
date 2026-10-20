@@ -1,41 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!--
+        Reglas de registro de Microsoft 365 para Odoo 19.
+        Se conservan todos los IDs originales para actualizar en producción.
+
+        IMPORTANTE:
+        - Las reglas de grupo de Odoo se combinan mediante OR. Por ello los
+          administradores tienen una regla explícita con acceso a todos los
+          registros, sin depender del orden o de los grupos heredados.
+        - Las reglas delimitan registros Odoo. Los permisos de operaciones
+          remotas se verifican además en microsoft.storage.location,
+          controladores y servicios Microsoft Graph.
+        - No se crea ninguna regla global restrictiva que impida la labor del
+          administrador o el aprovisionamiento mediante sudo controlado.
+    -->
+
+    <!-- Conexión delegada: cada usuario solo ve su conexión personal. -->
     <record id="rule_microsoft_connection_own" model="ir.rule">
         <field name="name">Conexiones Microsoft propias</field>
         <field name="model_id" ref="model_microsoft_user_connection"/>
         <field name="groups" eval="[(4, ref('group_microsoft_document_user'))]"/>
         <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
     </record>
+
     <record id="rule_microsoft_connection_admin" model="ir.rule">
         <field name="name">Conexiones Microsoft administración</field>
         <field name="model_id" ref="model_microsoft_user_connection"/>
         <field name="groups" eval="[(4, ref('group_microsoft_admin'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
     </record>
 
+    <!-- Solo bibliotecas asignadas directamente al usuario. -->
     <record id="rule_microsoft_location_allowed" model="ir.rule">
         <field name="name">Ubicaciones Microsoft autorizadas</field>
         <field name="model_id" ref="model_microsoft_storage_location"/>
         <field name="groups" eval="[(4, ref('group_microsoft_document_user'))]"/>
-        <field name="domain_force">['|', '|', ('reader_user_ids', 'in', user.id), ('editor_user_ids', 'in', user.id), ('manager_user_ids', 'in', user.id)]</field>
+        <field name="domain_force">['|', '|', ('reader_user_ids', 'in', [user.id]), ('editor_user_ids', 'in', [user.id]), ('manager_user_ids', 'in', [user.id])]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
     </record>
+
     <record id="rule_microsoft_location_admin" model="ir.rule">
         <field name="name">Ubicaciones Microsoft administración</field>
         <field name="model_id" ref="model_microsoft_storage_location"/>
         <field name="groups" eval="[(4, ref('group_microsoft_admin'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
     </record>
 
+    <!-- Los usuarios consultan únicamente su actividad documental. -->
     <record id="rule_microsoft_audit_own" model="ir.rule">
         <field name="name">Auditoría Microsoft propia</field>
         <field name="model_id" ref="model_microsoft_audit_log"/>
         <field name="groups" eval="[(4, ref('group_microsoft_document_user'))]"/>
         <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
     </record>
+
+    <!-- Los gestores consultan el historial completo. La ACL protege su
+         modificación y la creación de registros queda en el método _log(). -->
     <record id="rule_microsoft_audit_manager" model="ir.rule">
         <field name="name">Auditoría Microsoft completa</field>
         <field name="model_id" ref="model_microsoft_audit_log"/>
         <field name="groups" eval="[(4, ref('group_microsoft_document_manager'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
     </record>
 </odoo>
