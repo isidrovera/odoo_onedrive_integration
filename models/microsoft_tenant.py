@@ -68,12 +68,15 @@ class MicrosoftTenant(models.Model):
     def _compute_connection_status(self):
         now = fields.Datetime.now()
         for record in self:
-            delegated_ok = bool(record.access_token and record.token_expiry and record.token_expiry > now)
-            app_ok = bool(record.app_access_token and record.app_token_expiry and record.app_token_expiry > now)
+            # Los tokens son secretos: el cálculo usa lectura privilegiada,
+            # pero solo publica el estado de conexión (nunca el token).
+            secure_record = record.sudo()
+            delegated_ok = bool(secure_record.access_token and secure_record.token_expiry and secure_record.token_expiry > now)
+            app_ok = bool(secure_record.app_access_token and secure_record.app_token_expiry and secure_record.app_token_expiry > now)
             record.is_connected = delegated_ok or app_ok
             if record.is_connected:
                 record.token_status = "connected"
-            elif record.refresh_token or record.app_access_token:
+            elif secure_record.refresh_token or secure_record.app_access_token:
                 record.token_status = "expired"
             else:
                 record.token_status = "not_connected"
@@ -245,16 +248,19 @@ class MicrosoftTenant(models.Model):
 
     def get_app_token(self, resource="graph"):
         self.ensure_one()
+        # Acceso interno a secretos del tenant; los controladores verifican permisos
+        # de ubicación antes de invocar los servicios de Graph.
+        tenant = self.sudo()
         if resource not in ("graph", "sharepoint"):
             raise UserError("Recurso de autenticación Microsoft no permitido.")
         # La seguridad de los endpoints se aplica en los modelos y controladores.
         # No se expone este método como ruta pública ni se devuelve el token al cliente.
         now = fields.Datetime.now()
         if resource == "sharepoint":
-            if not self.sharepoint_root_url:
+            if not tenant.sharepoint_root_url:
                 raise UserError("Configure la URL raíz de SharePoint.")
             token_field, expiry_field = "sharepoint_access_token", "sharepoint_token_expiry"
-            parsed = urlparse(self.sharepoint_root_url.strip())
+            parsed = urlparse(tenant.sharepoint_root_url.strip())
             if (parsed.scheme != "https" or not parsed.hostname
                     or not parsed.hostname.lower().endswith(".sharepoint.com")
                     or parsed.port not in (None, 443) or parsed.username or parsed.password
@@ -264,20 +270,20 @@ class MicrosoftTenant(models.Model):
         else:
             token_field, expiry_field = "app_access_token", "app_token_expiry"
             scope = "https://graph.microsoft.com/.default"
-        token = self[token_field]
-        expiry = self[expiry_field]
+        token = tenant[token_field]
+        expiry = tenant[expiry_field]
         if token and expiry and expiry > now:
             return token
-        result = self._token_request({
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
+        result = tenant._token_request({
+            "client_id": tenant.client_id,
+            "client_secret": tenant.client_secret,
             "grant_type": "client_credentials",
             "scope": scope,
         })
         if not result.get("access_token"):
             raise UserError("Microsoft no devolvió un token de aplicación.")
         expires = int(result.get("expires_in", 3600))
-        self.sudo().write({
+        tenant.write({
             token_field: result.get("access_token"),
             expiry_field: now + timedelta(seconds=max(expires - 90, 60)),
         })

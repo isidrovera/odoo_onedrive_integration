@@ -52,9 +52,11 @@ class DriveService:
             token_provider = lambda: self.connection.with_user(self.user).get_valid_token()
         elif (
             location.location_type == "onedrive"
-            and self.tenant.refresh_token
             and self.user.has_group("odoo_onedrive_integration.group_microsoft_admin")
+            and bool(self.tenant.sudo().refresh_token)
         ):
+            # El refresh token es un campo protegido. Solo se consulta con sudo
+            # despues de confirmar el rol administrador, nunca desde el cliente.
             token_provider = lambda: self.tenant.get_valid_token()
         elif location.location_type == "sharepoint" or location.drive_id:
             token_provider = lambda: self.tenant.get_app_token("graph")
