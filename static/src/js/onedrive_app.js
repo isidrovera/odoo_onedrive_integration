@@ -40,9 +40,23 @@ export class OneDriveApp extends Component {
             ctxMenu: { open: false, x: 0, y: 0, file: null },
             dragOver: false,
             detailFile: null,
+            section: "documents", // documents | recent | favorites | shared
+            favorites: new Set(),
+            recentItems: [],
+            versions: [],
+            versionsLoading: false,
+            versionFile: null,
+            detailsTab: "details",
+            activity: [],
+            activityLoading: false,
+            error: null,
+            uploading: false,
+            uploadResults: [],
         });
 
         this._searchDebounce = null;
+        this._requestSeq = 0;
+        this._uploadAbort = null;
 
         // helpers expuestos al template
         this.getFileIcon = getFileIcon;
@@ -82,6 +96,7 @@ export class OneDriveApp extends Component {
             document.removeEventListener("click", this._onDocClick);
             document.removeEventListener("keydown", this._onDocKey);
             if (this._searchDebounce) clearTimeout(this._searchDebounce);
+            if (this._uploadAbort) this._uploadAbort.abort();
         });
     }
 
@@ -91,14 +106,23 @@ export class OneDriveApp extends Component {
     async loadLocations() {
         try {
             const res = await rpc("/microsoft/locations", {});
-            this.state.locations = res || [];
-            if (res && res.length) {
-                this.state.locationId = res[0].id;
-                this.state.currentLocation = res[0];
+            this.state.locations = (res || []).filter((loc) => loc && loc.id && loc.role);
+            if (this.state.locations.length) {
+                const current = this.state.locations.find((loc) => loc.id === this.state.locationId);
+                const target = current || this.state.locations[0];
+                this.state.locationId = target.id;
+                this.state.currentLocation = target;
+            } else {
+                this.state.locationId = null;
+                this.state.currentLocation = null;
             }
+            this.state.error = null;
         } catch (e) {
             console.error("loadLocations error:", e);
             this.state.locations = [];
+            this.state.locationId = null;
+            this.state.currentLocation = null;
+            this.state.error = this.errorMessage(e);
         }
     }
 
@@ -110,6 +134,11 @@ export class OneDriveApp extends Component {
         this.state.search = "";
         this.state.searching = false;
         this._selectedCache.clear();
+        this.state.currentFolder = null;
+        this.state.selected = new Set();
+        this.state.detailFile = null;
+        this.state.ctxMenu.open = false;
+        this.state.section = "documents";
         await this.loadFiles();
     }
 
@@ -131,7 +160,9 @@ export class OneDriveApp extends Component {
             this.state.filteredFiles = [];
             return;
         }
+        const seq = ++this._requestSeq;
         this.state.loading = true;
+        this.state.error = null;
         // En modo selector NO reseteamos la selección al navegar:
         // el usuario puede haber elegido archivos en otras carpetas
         // y queremos mantenerlos. Solo limpiamos el Set visible.
@@ -141,6 +172,7 @@ export class OneDriveApp extends Component {
                 parent_id: folderId,
                 location_id: this.state.locationId,
             });
+            if (seq !== this._requestSeq) return;
             // Sanitizar respuesta: quedarnos solo con items válidos
             const raw = (result && result.value) || [];
             this.state.files = raw.filter(f => f && f.id && f.name);
@@ -150,6 +182,7 @@ export class OneDriveApp extends Component {
             this.state.currentFolder = folderId;
             if (folderId === null) this.state.path = [];
             this.applyFilterAndSort();
+            this._rememberRecent(this.state.files);
 
             // Re-marcar como seleccionados los archivos que ya estaban
             // en el cache global del selector (si aplica).
@@ -163,11 +196,13 @@ export class OneDriveApp extends Component {
             }
         } catch (e) {
             console.error("loadFiles error:", e);
+            if (seq !== this._requestSeq) return;
+            this.state.error = this.errorMessage(e);
             this.notify(_t("Error cargando archivos"), "danger");
             this.state.files = [];
             this.state.filteredFiles = [];
         } finally {
-            this.state.loading = false;
+            if (seq === this._requestSeq) this.state.loading = false;
         }
     }
 
@@ -175,6 +210,14 @@ export class OneDriveApp extends Component {
         try {
             let list = (this.state.files || []).filter(f => f && f.id);
 
+            if (this.state.section === "favorites") {
+                list = list.filter(f => this.isFavorite(f));
+            } else if (this.state.section === "recent") {
+                list = list.filter(f => !!f.lastModifiedDateTime)
+                    .sort((a, b) => (b.lastModifiedDateTime || "").localeCompare(a.lastModifiedDateTime || ""));
+            } else if (this.state.section === "shared") {
+                list = list.filter(f => !!f.shared);
+            }
             const q = (this.state.search || "").trim().toLowerCase();
             if (q && !this.state.searching) {
                 list = list.filter(f => (f.name || "").toLowerCase().includes(q));
@@ -288,6 +331,9 @@ export class OneDriveApp extends Component {
     selectForDetails(file, ev) {
         if (ev) ev.stopPropagation();
         this.state.detailFile = file || null;
+        this.state.detailsTab = "details";
+        this.state.versions = [];
+        this.state.versionFile = null;
     }
 
     closeDetails() {
@@ -315,6 +361,7 @@ export class OneDriveApp extends Component {
             this.state.searching = false;
             this.state.search = "";
         }
+        this.state.section = "documents";
         this.state.path.push({ id: file.id, name: file.name });
         await this.loadFiles(file.id);
     }
@@ -324,7 +371,7 @@ export class OneDriveApp extends Component {
      * usando webUrl. Permite EDITAR Excel/Word/PowerPoint en el navegador.
      */
     openExternal(file) {
-        if (file && file.webUrl) {
+        if (file && file.webUrl && /^https:\/\//i.test(file.webUrl)) {
             window.open(file.webUrl, "_blank", "noopener");
         } else {
             this.previewFile(file);
@@ -337,6 +384,7 @@ export class OneDriveApp extends Component {
             this.state.search = "";
         }
         this.state.path = [];
+        this.state.section = "documents";
         await this.loadFiles(null);
     }
 
@@ -388,13 +436,16 @@ export class OneDriveApp extends Component {
     }
 
     async _doGlobalSearch(q) {
+        const seq = ++this._requestSeq;
         this.state.searching = true;
         this.state.loading = true;
+        this.state.error = null;
         try {
             const res = await rpc("/microsoft/search", {
                 query: q,
                 location_id: this.state.locationId,
             });
+            if (seq !== this._requestSeq) return;
             const raw = (res && res.value) || [];
             this.state.files = raw.filter(f => f && f.id && f.name);
             this.applyFilterAndSort();
@@ -410,11 +461,13 @@ export class OneDriveApp extends Component {
             }
         } catch (e) {
             console.error("search error:", e);
+            if (seq !== this._requestSeq) return;
+            this.state.error = this.errorMessage(e);
             this.notify(_t("Error buscando"), "danger");
             this.state.files = [];
             this.state.filteredFiles = [];
         } finally {
-            this.state.loading = false;
+            if (seq === this._requestSeq) this.state.loading = false;
         }
     }
 
@@ -462,7 +515,8 @@ export class OneDriveApp extends Component {
     }
 
     selectAll() {
-        if (this.state.selected.size === this.state.filteredFiles.length) {
+        const eligible = this.state.filteredFiles.filter(f => !this.selectorMode || !f.folder);
+        if (eligible.length && eligible.every(f => this.state.selected.has(f.id))) {
             // deseleccionar todos los visibles
             if (this.selectorMode) {
                 for (const id of this.state.selected) {
@@ -505,13 +559,14 @@ export class OneDriveApp extends Component {
     // CONTEXT MENU
     // =========================================================
     openCtxMenu(file, ev) {
+        if (this.selectorMode) return;
         if (ev) {
             ev.preventDefault();
             ev.stopPropagation();
         }
         // Ajuste para que no se salga de la pantalla
-        const x = Math.min(ev.clientX, window.innerWidth - 240);
-        const y = Math.min(ev.clientY, window.innerHeight - 320);
+        const x = Math.max(8, Math.min(ev?.clientX || 0, window.innerWidth - 240));
+        const y = Math.max(8, Math.min(ev?.clientY || 0, window.innerHeight - 320));
         this.state.ctxMenu = { open: true, x, y, file };
     }
 
@@ -553,6 +608,7 @@ export class OneDriveApp extends Component {
     }
 
     async createFolder() {
+        if (this.selectorMode || !this.canEdit()) return;
         this.dialog.add(PromptDialog, {
             title: _t("Nueva carpeta"),
             label: _t("Nombre de la carpeta"),
@@ -577,7 +633,7 @@ export class OneDriveApp extends Component {
     }
 
     renameItem(file) {
-        if (!file) return;
+        if (!file || !this.canEdit() || this.selectorMode) return;
         this.dialog.add(PromptDialog, {
             title: _t("Renombrar"),
             label: _t("Nuevo nombre"),
@@ -602,7 +658,7 @@ export class OneDriveApp extends Component {
     }
 
     deleteItem(file) {
-        if (!file) return;
+        if (!file || !this.canManage() || this.selectorMode) return;
         this.dialog.add(ConfirmDialog, {
             title: _t("Eliminar elemento"),
             message: _t('¿Seguro que deseas eliminar "%s"?', file.name),
@@ -627,6 +683,7 @@ export class OneDriveApp extends Component {
     }
 
     deleteSelected() {
+        if (!this.canManage() || this.selectorMode) return;
         const ids = Array.from(this.state.selected);
         if (!ids.length) return;
         this.dialog.add(ConfirmDialog, {
@@ -659,7 +716,7 @@ export class OneDriveApp extends Component {
     }
 
     shareItem(file) {
-        if (!file) return;
+        if (!file || !this.canManage() || this.selectorMode) return;
         this.dialog.add(ShareDialog, {
             file,
             locationId: this.state.locationId,
@@ -675,60 +732,81 @@ export class OneDriveApp extends Component {
     // UPLOAD
     // =========================================================
     triggerUpload() {
+        if (this.selectorMode || !this.canEdit() || this.state.uploading) return;
         if (this.fileInputRef.el) this.fileInputRef.el.click();
     }
 
     async uploadFile(ev) {
-        const files = (ev && ev.target && ev.target.files) || ev;
-        if (!files || !files.length) return;
-        for (const file of files) {
-            await this._uploadOne(file);
+        if (this.selectorMode || !this.canEdit() || this.state.uploading) return;
+        const files = Array.from((ev && ev.target && ev.target.files) || ev || []);
+        if (!files.length) return;
+        const locationId = this.state.locationId;
+        const parentId = this.state.currentFolder;
+        this.state.uploading = true;
+        this.state.uploadResults = [];
+        try {
+            for (const file of files) {
+                if (!this.state.locations.some(loc => loc.id === locationId)) break;
+                const result = await this._uploadOne(file, locationId, parentId);
+                this.state.uploadResults.push({ name: file.name, ok: result.ok, error: result.error || null });
+            }
+        } finally {
+            this.state.uploading = false;
+            this.state.uploadProgress = null;
+            if (this.fileInputRef.el) this.fileInputRef.el.value = "";
+            if (locationId === this.state.locationId && parentId === this.state.currentFolder) {
+                await this.loadFiles(parentId);
+            }
+            const failed = this.state.uploadResults.filter(r => !r.ok).length;
+            if (failed) this.notify(_t("Fallaron %s de %s archivos", failed, files.length), "warning");
         }
-        await this.loadFiles(this.state.currentFolder);
-        if (this.fileInputRef.el) this.fileInputRef.el.value = "";
     }
 
-    async _uploadOne(file) {
+    async _uploadOne(file, locationId = this.state.locationId, parentId = this.state.currentFolder) {
         this.state.uploadProgress = { name: file.name, percent: 0 };
-        const formData = new FormData();
-        formData.append("file", file);
-        if (this.state.locationId) {
-            formData.append("location_id", this.state.locationId);
-        }
-        if (this.state.currentFolder) {
-            formData.append("parent_id", this.state.currentFolder);
-        }
-
+        const data = new FormData();
+        data.append("file", file);
+        data.append("location_id", String(locationId));
+        if (parentId) data.append("parent_id", String(parentId));
+        if (typeof odoo !== "undefined" && odoo.csrf_token) data.append("csrf_token", odoo.csrf_token);
         return new Promise((resolve) => {
             const xhr = new XMLHttpRequest();
-            if (typeof odoo !== "undefined" && odoo.csrf_token) {
-                formData.append("csrf_token", odoo.csrf_token);
-            }
+            this._uploadAbort = xhr;
+            let finished = false;
+            const done = (ok, error) => {
+                if (finished) return;
+                finished = true;
+                this._uploadAbort = null;
+                this.state.uploadProgress = null;
+                if (ok) this.notify(_t("Subido: %s", file.name), "success");
+                else this.notify(_t("Error subiendo: %s", file.name), "danger");
+                resolve({ ok, error });
+            };
             xhr.open("POST", "/microsoft/upload");
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
                     this.state.uploadProgress = {
                         name: file.name,
-                        percent: Math.round((e.loaded / e.total) * 100),
+                        percent: Math.min(99, Math.round(e.loaded * 100 / e.total)),
                     };
                 }
             };
             xhr.onload = () => {
-                this.state.uploadProgress = null;
-                if (xhr.status < 400) {
-                    this.notify(_t("Subido: %s", file.name), "success");
-                } else {
-                    this.notify(_t("Error subiendo: %s", file.name), "danger");
-                }
-                resolve();
+                let body = null;
+                try { body = JSON.parse(xhr.responseText || "{}"); } catch (_ignored) { /* Invalid response */ }
+                const ok = xhr.status >= 200 && xhr.status < 300 && body?.status === "ok" && !!body.item;
+                done(ok, ok ? null : body?.message || `HTTP ${xhr.status}`);
             };
-            xhr.onerror = () => {
-                this.state.uploadProgress = null;
-                this.notify(_t("Error de red"), "danger");
-                resolve();
-            };
-            xhr.send(formData);
+            xhr.onerror = () => done(false, _t("Error de red"));
+            xhr.onabort = () => done(false, _t("Carga cancelada"));
+            xhr.ontimeout = () => done(false, _t("La carga excedió el tiempo permitido"));
+            xhr.timeout = 30 * 60 * 1000;
+            xhr.send(data);
         });
+    }
+
+    cancelUpload() {
+        this._uploadAbort?.abort();
     }
 
     // =========================================================
@@ -773,13 +851,103 @@ export class OneDriveApp extends Component {
             }
             this.closeCtxMenu();
         }
-        if (ev.key === "Delete" && this.state.selected.size > 0 && !this.selectorMode && this.canManage()) {
+        if (ev.key === "Delete" && this.state.selected.size > 0 && !this.selectorMode && this.canManage() && !ev.repeat) {
             // Solo si no estamos en un input
             const tag = (ev.target && ev.target.tagName) || "";
             if (tag !== "INPUT" && tag !== "TEXTAREA") {
                 this.deleteSelected();
             }
         }
+    }
+
+    // =========================================================
+    // SECCIONES, FAVORITOS Y ACTIVIDAD
+    // =========================================================
+    async setSection(section) {
+        if (!["documents", "recent", "favorites", "shared"].includes(section)) return;
+        if (this.selectorMode && section !== "documents") return;
+        this.state.section = section;
+        this.state.searching = false;
+        this.state.search = "";
+        if (section === "documents") await this.loadFiles(this.state.currentFolder);
+        else this.applyFilterAndSort();
+    }
+
+    _favoriteKey(file) {
+        return `${this.state.locationId}:${file?.id || ""}`;
+    }
+
+    isFavorite(file) { return !!file && this.state.favorites.has(this._favoriteKey(file)); }
+
+    toggleFavorite(file, ev) {
+        ev?.stopPropagation();
+        if (!file || this.selectorMode) return;
+        const key = this._favoriteKey(file);
+        const set = new Set(this.state.favorites);
+        if (set.has(key)) set.delete(key); else set.add(key);
+        this.state.favorites = set;
+        this.applyFilterAndSort();
+    }
+
+    _rememberRecent(files) {
+        // Recentes de la sesión del explorador, no historial global de Microsoft.
+        const known = new Map(this.state.recentItems.map(f => [`${f.location_id}:${f.id}`, f]));
+        for (const file of files) {
+            if (file?.id && !file.folder) known.set(`${this.state.locationId}:${file.id}`,
+                { ...file, location_id: this.state.locationId });
+        }
+        this.state.recentItems = Array.from(known.values())
+            .sort((a, b) => (b.lastModifiedDateTime || "").localeCompare(a.lastModifiedDateTime || ""))
+            .slice(0, 100);
+    }
+
+    async loadVersions(file) {
+        if (!file || file.folder) return;
+        this.state.versionFile = file;
+        this.state.versions = [];
+        this.state.versionsLoading = true;
+        try {
+            const res = await rpc("/microsoft/versions", {
+                item_id: file.id,
+                location_id: this.state.locationId,
+            });
+            this.state.versions = res?.value || [];
+        } catch (e) {
+            this.notify(this.errorMessage(e), "danger");
+        } finally {
+            this.state.versionsLoading = false;
+        }
+    }
+
+    restoreVersion(file, version) {
+        if (!this.canManage() || !file || !version?.id || this.selectorMode) return;
+        this.dialog.add(ConfirmDialog, {
+            title: _t("Restaurar versión"),
+            message: _t("¿Restaurar la versión %s de %s?", version.id, file.name),
+            confirmLabel: _t("Restaurar"),
+            onConfirm: async () => {
+                await rpc("/microsoft/restore_version", {
+                    item_id: file.id,
+                    version_id: version.id,
+                    location_id: this.state.locationId,
+                });
+                this.notify(_t("Versión restaurada"), "success");
+                await this.loadVersions(file);
+                await this._refresh();
+            },
+        });
+    }
+
+    async showActivity(file) {
+        // La actividad documental requiere una ruta autorizada de lectura de auditoría.
+        this.state.detailsTab = "activity";
+        this.state.activity = [];
+        this.state.activityLoading = false;
+        if (file) this.state.detailFile = file;
+    }
+
+    errorMessage(e) {
+        return e?.data?.message || e?.message || _t("Ocurrió un error inesperado");
     }
 
     // =========================================================

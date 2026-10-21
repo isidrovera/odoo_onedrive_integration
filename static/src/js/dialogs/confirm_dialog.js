@@ -1,11 +1,14 @@
-// static/src/js/dialogs/confirm_dialog.js
+
 /** @odoo-module **/
-import { Component } from "@odoo/owl";
+
+import { Component, useState } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
+import { useService } from "@web/core/utils/hooks";
 
 export class ConfirmDialog extends Component {
     static template = "odoo_onedrive_integration.ConfirmDialog";
     static components = { Dialog };
+
     static props = {
         close: Function,
         title: { type: String, optional: true },
@@ -18,9 +21,51 @@ export class ConfirmDialog extends Component {
         onConfirm: Function,
     };
 
-    async confirm() {
-        await this.props.onConfirm();
-        this.props.close();
+    setup() {
+        this.notification = useService("notification");
+
+        this.state = useState({
+            loading: false,
+        });
     }
-    cancel() { this.props.close(); }
+
+    async confirm() {
+        if (this.state.loading) {
+            return;
+        }
+
+        this.state.loading = true;
+
+        try {
+            const result = await this.props.onConfirm();
+
+            if (result === false) {
+                return;
+            }
+
+            this.props.close();
+        } catch (error) {
+            console.error(
+                "[Microsoft 365] Error en confirmación:",
+                error
+            );
+
+            this.notification.add(
+                error?.data?.message ||
+                error?.message ||
+                "No se pudo completar la operación.",
+                {
+                    type: "danger",
+                }
+            );
+        } finally {
+            this.state.loading = false;
+        }
+    }
+
+    cancel() {
+        if (!this.state.loading) {
+            this.props.close();
+        }
+    }
 }

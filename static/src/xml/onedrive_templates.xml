@@ -15,16 +15,17 @@
                 <span class="od_brand_mark"><i class="bi bi-microsoft"/></span>
                 <div>
                     <strong>Microsoft 365</strong>
-                    <small><span class="od_online_dot"/> Conectado</small>
+                    <small><span class="od_online_dot"/> Explorador documental</small>
                 </div>
             </div>
             <nav class="od_nav">
                 <div class="od_nav_label">Documentos</div>
-                <button class="od_nav_item"><i class="bi bi-house-door"/><span>Inicio</span></button>
-                <button class="od_nav_item active"><i class="bi bi-folder2-open"/><span>Mis documentos</span></button>
-                <button class="od_nav_item"><i class="bi bi-share"/><span>Compartidos</span></button>
-                <button class="od_nav_item"><i class="bi bi-clock-history"/><span>Recientes</span></button>
-                <button class="od_nav_item"><i class="bi bi-star"/><span>Favoritos</span></button>
+                <button type="button" class="od_nav_item" t-att-class="{'active': state.section === 'documents'}" t-on-click="() => this.setSection('documents')"><i class="bi bi-folder2-open"/><span>Mis documentos</span></button>
+                <t t-if="!selectorMode">
+                    <button type="button" class="od_nav_item" t-att-class="{'active': state.section === 'shared'}" t-on-click="() => this.setSection('shared')"><i class="bi bi-share"/><span>Compartidos en esta carpeta</span></button>
+                    <button type="button" class="od_nav_item" t-att-class="{'active': state.section === 'recent'}" t-on-click="() => this.setSection('recent')"><i class="bi bi-clock-history"/><span>Modificados recientemente</span></button>
+                    <button type="button" class="od_nav_item" t-att-class="{'active': state.section === 'favorites'}" t-on-click="() => this.setSection('favorites')"><i class="bi bi-star"/><span>Favoritos de la sesión</span></button>
+                </t>
             </nav>
             <div class="od_spaces">
                 <div class="od_nav_label">Ubicación actual</div>
@@ -112,6 +113,7 @@
                 Subiendo: <strong><t t-esc="state.uploadProgress.name"/></strong>
                 <span><t t-esc="state.uploadProgress.percent"/>%</span>
             </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" t-on-click="() => this.cancelUpload()">Cancelar archivo</button>
             <div class="od_progress">
                 <div class="od_progress_bar"
                      t-att-style="`width: ${state.uploadProgress.percent}%`"/>
@@ -126,24 +128,25 @@
             </div>
             </div>
 
+            <div t-if="state.error and !state.loading" class="alert alert-danger m-3" role="alert"><t t-esc="state.error"/></div>
             <div t-if="state.loading" class="od_loading">
             <div class="od_spinner"/>
             <p>Cargando archivos...</p>
             </div>
 
-            <div t-if="!state.loading and state.locations.length === 0" class="od_empty">
+            <div t-if="!state.loading and !state.error and state.locations.length === 0" class="od_empty">
             <i class="bi bi-shield-lock"/>
             <h3>No tienes ubicaciones documentales asignadas</h3>
             <p>Solicita acceso al administrador Microsoft 365.</p>
             </div>
-            <div t-elif="!state.loading and state.filteredFiles.length === 0" class="od_empty">
+            <div t-elif="!state.loading and !state.error and state.filteredFiles.length === 0" class="od_empty">
             <i class="bi bi-folder2-open"/>
             <h3 t-if="state.searching">No hay resultados para "<t t-esc="state.search"/>"</h3>
             <h3 t-else="">Esta carpeta está vacía</h3>
             <p t-if="!selectorMode">Arrastra archivos aquí o haz clic en Subir</p>
             </div>
 
-            <div class="od_content_shell" t-if="!state.loading and state.filteredFiles.length > 0">
+            <div class="od_content_shell" t-if="!state.loading and !state.error and state.filteredFiles.length > 0">
                 <section class="od_files_panel">
 
         <div t-if="state.view === 'grid'"
@@ -184,6 +187,7 @@
                     </div>
 
                     <div t-if="!selectorMode" class="od_card_actions">
+                        <button class="btn" t-on-click.stop="(ev) => this.toggleFavorite(file, ev)" t-att-title="isFavorite(file) ? 'Quitar favorito' : 'Marcar favorito'"><i t-att-class="isFavorite(file) ? 'bi bi-star-fill' : 'bi bi-star'"/></button>
                         <button class="btn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
                             <i class="bi bi-eye"/>
                         </button>
@@ -244,10 +248,11 @@
                         <t t-else=""><t t-esc="formatBytes(file.size)"/></t>
                     </div>
                     <div t-if="!selectorMode" class="od_col_actions">
+                        <button class="btn" t-on-click.stop="(ev) => this.toggleFavorite(file, ev)" t-att-title="isFavorite(file) ? 'Quitar favorito' : 'Marcar favorito'"><i t-att-class="isFavorite(file) ? 'bi bi-star-fill' : 'bi bi-star'"/></button>
                         <button class="btn" t-on-click.stop="() => this.previewFile(file)" title="Vista previa">
                             <i class="bi bi-eye"/>
                         </button>
-                        <button class="btn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
+                        <button t-if="!file.folder" class="btn" t-on-click.stop="() => this.downloadItem(file)" title="Descargar">
                             <i class="bi bi-download"/>
                         </button>
                         <button t-if="canManage()" class="btn" t-on-click.stop="() => this.shareItem(file)" title="Compartir">
@@ -273,14 +278,29 @@
                         <t t-set="detailIcon" t-value="getFileIcon(state.detailFile)"/>
                         <i t-att-class="`bi ${detailIcon.icon}`" t-att-style="`color:${detailIcon.color};`"/>
                     </div>
-                    <div class="od_details_tabs"><span class="active">Detalles</span><span>Actividad</span></div>
-                    <dl class="od_details_list">
+                    <div class="od_details_tabs">
+                        <button type="button" t-att-class="{'active': state.detailsTab === 'details'}" t-on-click="() => state.detailsTab = 'details'">Detalles</button>
+                        <button type="button" t-att-class="{'active': state.detailsTab === 'activity'}" t-on-click="() => this.showActivity(state.detailFile)">Actividad</button>
+                        <button t-if="!state.detailFile.folder" type="button" t-att-class="{'active': state.detailsTab === 'versions'}" t-on-click="() => { state.detailsTab = 'versions'; this.loadVersions(state.detailFile); }">Versiones</button>
+                    </div>
+                    <dl t-if="state.detailsTab === 'details'" class="od_details_list">
                         <div><dt>Modificado por</dt><dd><span class="od_avatar"><t t-esc="getModifierInitials(state.detailFile)"/></span><t t-esc="getModifiedBy(state.detailFile)"/></dd></div>
                         <div><dt>Última modificación</dt><dd><strong t-esc="formatRelativeDate(state.detailFile.lastModifiedDateTime)"/><small t-esc="formatDate(state.detailFile.lastModifiedDateTime)"/></dd></div>
                         <div><dt>Ubicación</dt><dd><i class="bi bi-folder2"/><t t-esc="getCurrentPath()"/></dd></div>
                         <div><dt>Tipo</dt><dd t-if="state.detailFile.folder">Carpeta</dd><dd t-else=""><t t-esc="(state.detailFile.file and state.detailFile.file.mimeType) or 'Archivo'"/></dd></div>
                         <div t-if="!state.detailFile.folder"><dt>Tamaño</dt><dd t-esc="formatBytes(state.detailFile.size)"/></div>
                     </dl>
+                    <div t-if="state.detailsTab === 'activity'" class="od_details_list p-3">
+                        <p class="text-muted">La actividad de auditoría todavía no está disponible en esta vista.</p>
+                    </div>
+                    <div t-if="state.detailsTab === 'versions'" class="od_details_list p-3">
+                        <p t-if="state.versionsLoading">Consultando versiones...</p>
+                        <p t-elif="!state.versions.length" class="text-muted">No hay versiones disponibles.</p>
+                        <div t-foreach="state.versions" t-as="version" t-key="version.id" class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <div><strong t-esc="version.id"/><small class="d-block" t-esc="formatDate(version.lastModifiedDateTime)"/></div>
+                            <button t-if="!selectorMode and canManage()" type="button" class="btn btn-sm btn-outline-primary" t-on-click="() => this.restoreVersion(state.detailFile, version)">Restaurar</button>
+                        </div>
+                    </div>
                     <div class="od_details_actions">
                         <button t-if="!state.detailFile.folder" class="btn btn-primary" t-on-click="() => this.openExternal(state.detailFile)"><i class="bi bi-box-arrow-up-right"/> Abrir</button>
                         <button class="btn btn-light" t-on-click="() => this.showProperties(state.detailFile)"><i class="bi bi-info-circle"/> Propiedades</button>
@@ -290,12 +310,12 @@
         </main>
 
         <!-- CONTEXT MENU -->
-        <div t-if="state.ctxMenu.open" class="od_ctxmenu"
+        <div t-if="state.ctxMenu.open and state.ctxMenu.file" class="od_ctxmenu"
              t-att-style="`top:${state.ctxMenu.y}px; left:${state.ctxMenu.x}px;`">
             <button class="btn" t-on-click="() => this.previewFile(state.ctxMenu.file)">
                 <i class="bi bi-eye"/> Vista previa
             </button>
-            <button t-if="!selectorMode and !state.ctxMenu.file.folder" class="btn" t-on-click="() => this.downloadItem(state.ctxMenu.file)">
+            <button t-if="!selectorMode and state.ctxMenu.file and !state.ctxMenu.file.folder" class="btn" t-on-click="() => this.downloadItem(state.ctxMenu.file)">
                 <i class="bi bi-download"/> Descargar
             </button>
             <button t-if="!selectorMode and canManage()" class="btn" t-on-click="() => this.shareItem(state.ctxMenu.file)">
@@ -307,6 +327,7 @@
                     <i class="bi bi-pencil"/> Renombrar
                 </button>
             </t>
+            <button t-if="!selectorMode and state.ctxMenu.file and !state.ctxMenu.file.folder" class="btn" t-on-click="() => { this.selectForDetails(state.ctxMenu.file); this.state.detailsTab = 'versions'; this.loadVersions(state.ctxMenu.file); this.closeCtxMenu(); }"><i class="bi bi-clock-history"/> Versiones</button>
             <button class="btn" t-on-click="() => this.showProperties(state.ctxMenu.file)">
                 <i class="bi bi-info-circle"/> Propiedades
             </button>

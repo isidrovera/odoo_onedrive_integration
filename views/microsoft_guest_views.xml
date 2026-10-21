@@ -5,7 +5,7 @@
         <field name="model">microsoft.guest</field>
         <field name="arch" type="xml">
             <list decoration-success="state == 'accepted'" decoration-warning="state == 'pending'" decoration-danger="state in ('blocked', 'error')">
-                <field name="display_name"/>
+                <field name="name"/>
                 <field name="email"/>
                 <field name="user_id"/>
                 <field name="tenant_id"/>
@@ -28,7 +28,7 @@
                     <field name="state" widget="statusbar" statusbar_visible="draft,pending,accepted,blocked,error"/>
                 </header>
                 <sheet>
-                    <div class="oe_title"><h1><field name="display_name"/></h1></div>
+                    <div class="oe_title"><h1><field name="name" placeholder="Nombre del invitado"/></h1></div>
                     <group>
                         <group string="Usuario">
                             <field name="tenant_id" readonly="entra_user_id"/>
@@ -50,6 +50,11 @@
                             <group>
                                 <field name="group_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]"/>
                                 <field name="owner_group_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id), ('group_type', '=', 'microsoft365')]"/>
+                            </group>
+                        </page>
+                        <page string="Invitación" groups="odoo_onedrive_integration.group_microsoft_admin">
+                            <group>
+                                <field name="invitation_url" readonly="1" widget="url"/>
                             </group>
                         </page>
                         <page string="Errores"><field name="last_error" readonly="1"/></page>
