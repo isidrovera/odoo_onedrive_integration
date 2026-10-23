@@ -6,6 +6,10 @@ concreta. Nunca se utilizan permisos de aplicación para omitir controles Odoo.
 """
 import json
 import logging
+import hmac
+import hashlib
+import base64
+import time
 from urllib.parse import quote as url_quote
 
 import requests as http_requests
@@ -277,6 +281,121 @@ class MicrosoftDocumentsController(http.Controller):
                 remote.close()
             _logger.exception("Microsoft download network error")
             return request.make_response("No se pudo descargar el documento.", status=502)
+
+    # Sesión temporal firmada: vinculada al usuario, ubicación, URL y tamaño.
+    @staticmethod
+    def _proof_key():
+        secret = request.env["ir.config_parameter"].sudo().get_param("database.secret")
+        if not secret:
+            raise UserError("La clave de seguridad de la base no está disponible.")
+        return hashlib.sha256(secret.encode("utf-8")).digest()
+
+    @classmethod
+    def _sign_upload(cls, data):
+        payload = base64.urlsafe_b64encode(json.dumps(data, separators=(",", ":")).encode()).decode().rstrip("=")
+        signature = hmac.new(cls._proof_key(), payload.encode(), hashlib.sha256).hexdigest()
+        return f"{payload}.{signature}"
+
+    @classmethod
+    def _check_upload(cls, proof, upload_url, location_id):
+        try:
+            payload, signature = proof.rsplit(".", 1)
+            correct = hmac.new(cls._proof_key(), payload.encode(), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(signature, correct):
+                raise ValueError("firma")
+            data = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+            if (data["uid"] != request.env.user.id or data["location"] != int(location_id)
+                or data["exp"] < time.time() or not hmac.compare_digest(
+                    data["url_sha"], hashlib.sha256(upload_url.encode()).hexdigest())):
+                raise ValueError("caducidad")
+            return data
+        except (KeyError, ValueError, TypeError, AttributeError) as exc:
+            raise AccessError("La sesión de subida es inválida o ha caducado.") from exc
+
+    @http.route("/microsoft/ensure_folder", type="jsonrpc", auth="user")
+    def ensure_folder(self, name, parent_id=None, location_id=None):
+        location, service = self._service("create_folder", location_id)
+        result = service.ensure_folder(name, parent_id)
+        self._audit("create_folder", location, item_id=result.get("id"), item_name=name)
+        return result
+
+    @http.route("/microsoft/upload_session", type="jsonrpc", auth="user")
+    def upload_session(self, name, size, parent_id=None, location_id=None):
+        location, service = self._service("upload", location_id)
+        session = service.start_chunk_upload(name, size, parent_id)
+        proof = self._sign_upload({
+            "uid": request.env.user.id, "location": location.id,
+            "size": session["size"], "exp": int(time.time()) + 12 * 3600,
+            "url_sha": hashlib.sha256(session["upload_url"].encode()).hexdigest(),
+        })
+        return {"upload_url": session["upload_url"], "proof": proof}
+
+    @http.route("/microsoft/upload_chunk", type="http", auth="user", methods=["POST"], csrf=True)
+    def upload_chunk(self, **post):
+        remote = None
+        try:
+            location_id = post.get("location_id")
+            self._service("upload", location_id)
+            url = DriveService._validate_temporary_url(post.get("upload_url"))
+            proof = self._check_upload(post.get("proof"), url, location_id)
+            start, end, total = (int(post.get(k)) for k in ("start", "end", "total"))
+            uploaded = post.get("chunk")
+            if not uploaded or total != proof["size"] or start < 0 or end <= start or end > total:
+                raise UserError("Parámetros de fragmento inválidos.")
+            size = end - start
+            if size > 5 * 1024 * 1024 or (start % (320 * 1024)) or (end != total and size % (320 * 1024)):
+                raise UserError("El fragmento incumple los tamaños admitidos por Microsoft Graph.")
+            content = uploaded.stream.read(size + 1)
+            if len(content) != size:
+                raise UserError("El fragmento recibido está incompleto o supera su tamaño declarado.")
+            remote = http_requests.put(url, data=content, headers={
+                "Content-Length": str(size), "Content-Range": f"bytes {start}-{end-1}/{total}",
+            }, timeout=180, allow_redirects=False)
+            if remote.status_code not in (200, 201, 202):
+                _logger.warning("[MICROSOFT] Fragmento rechazado status=%s", remote.status_code)
+                return self._json({"status":"error", "message":f"Microsoft rechazó el fragmento ({remote.status_code})"}, 502)
+            payload = remote.json()
+            if remote.status_code in (200, 201):
+                if not payload.get("id"):
+                    raise UserError("Microsoft no confirmó el identificador del archivo.")
+                location = self._location(location_id)
+                self._audit("upload", location, item_id=payload["id"], item_name=payload.get("name"))
+                return self._json({"status": "ok", "item": payload})
+            ranges = payload.get("nextExpectedRanges") or []
+            next_offset = int(str(ranges[0]).split("-")[0]) if ranges else end
+            return self._json({"status": "ok", "next_offset": next_offset})
+        except (UserError, AccessError, TypeError, ValueError) as exc:
+            return self._json({"status":"error", "message":str(exc)}, 403 if isinstance(exc, AccessError) else 400)
+        except http_requests.RequestException:
+            _logger.exception("[MICROSOFT] Error de transferencia de fragmento")
+            return self._json({"status":"error", "message":"Error de red con Microsoft 365"}, 502)
+        finally:
+            if remote is not None:
+                remote.close()
+
+    @http.route("/microsoft/upload_status", type="jsonrpc", auth="user")
+    def upload_status(self, upload_url, proof, location_id):
+        self._service("upload", location_id)
+        url = DriveService._validate_temporary_url(upload_url)
+        self._check_upload(proof, url, location_id)
+        remote = http_requests.get(url, timeout=30, allow_redirects=False)
+        try:
+            if remote.status_code != 200:
+                raise UserError("No fue posible consultar la sesión de carga.")
+            data = remote.json()
+            ranges = data.get("nextExpectedRanges") or []
+            if not ranges:
+                raise UserError("La sesión no devolvió su posición actual.")
+            return {"next_offset": int(str(ranges[0]).split("-")[0])}
+        finally:
+            remote.close()
+
+    @http.route("/microsoft/upload_complete", type="jsonrpc", auth="user")
+    def upload_complete(self, upload_url, proof, location_id):
+        # No inventamos una finalización si Graph no ha devuelto un driveItem.
+        self._service("upload", location_id)
+        self._check_upload(proof, DriveService._validate_temporary_url(upload_url), location_id)
+        raise UserError("Microsoft no confirmó el archivo final. Revise la carpeta antes de reintentar.")
 
     @http.route("/microsoft/upload", type="http", auth="user", methods=["POST"], csrf=True)
     def upload_file(self, **post):

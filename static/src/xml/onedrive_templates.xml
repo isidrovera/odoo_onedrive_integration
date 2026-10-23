@@ -73,8 +73,10 @@
                 <div class="od_toolbar_actions">
                     <t t-if="!selectorMode and canEdit()">
                         <button class="btn od_btn_new" t-on-click="() => this.createFolder()"><i class="bi bi-plus-lg"/> Nueva carpeta</button>
-                        <button class="btn od_btn_upload" t-on-click="() => this.triggerUpload()"><i class="bi bi-cloud-arrow-up"/> Subir</button>
+                        <button class="btn od_btn_upload" t-on-click="() => this.triggerUpload()"><i class="bi bi-cloud-arrow-up"/> Subir archivos</button>
+                         <button class="btn od_btn_upload" t-on-click="() => this.triggerFolderUpload()"><i class="bi bi-folder-symlink"/> Subir carpeta</button>
                         <input type="file" t-ref="fileInput" multiple="multiple" style="display:none;" t-on-change="uploadFile"/>
+                         <input type="file" t-ref="folderInput" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple" style="display:none;" t-on-change="uploadFile"/>
                     </t>
                     <t t-if="state.selected.size > 0">
                         <span class="od_selcount"><i class="bi bi-check-circle-fill"/> <t t-esc="state.selected.size"/> seleccionados</span>
@@ -164,7 +166,12 @@
                     </div>
 
                     <div class="od_card_thumb" t-on-click="() => this.openFolder(file)">
-                        <div class="od_card_icon" t-att-style="`color:${ic.color};`">
+                        <t t-if="!file.folder">
+                             <img t-att-src="`/microsoft/thumbnail/${encodeURIComponent(file.id)}?location_id=${state.locationId}&amp;size=medium`"
+                                  loading="lazy" alt="Vista previa"
+                                  t-on-error="(ev) => { ev.target.style.display = 'none'; ev.target.nextElementSibling.style.display = 'flex'; }"/>
+                         </t>
+                         <div class="od_card_icon" t-att-style="`color:${ic.color};${file.folder ? '' : 'display:none;'}`">
                             <i t-att-class="`bi ${ic.icon}`"/>
                         </div>
                     </div>
@@ -276,7 +283,8 @@
                     </div>
                     <div class="od_details_preview">
                         <t t-set="detailIcon" t-value="getFileIcon(state.detailFile)"/>
-                        <i t-att-class="`bi ${detailIcon.icon}`" t-att-style="`color:${detailIcon.color};`"/>
+                        <img t-if="!state.detailFile.folder" t-att-src="`/microsoft/thumbnail/${encodeURIComponent(state.detailFile.id)}?location_id=${state.locationId}&amp;size=large`" loading="lazy" alt="Miniatura" t-on-error="(ev) => ev.target.style.display = 'none'"/>
+                         <i t-att-class="`bi ${detailIcon.icon}`" t-att-style="`color:${detailIcon.color};`"/>
                     </div>
                     <div class="od_details_tabs">
                         <button type="button" t-att-class="{'active': state.detailsTab === 'details'}" t-on-click="() => state.detailsTab = 'details'">Detalles</button>
