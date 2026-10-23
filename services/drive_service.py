@@ -11,6 +11,8 @@ Las autorizaciones de operaciones se comprueban también en el servidor.
 """
 
 import io
+import zipfile
+from xml.sax.saxutils import escape as xml_escape
 
 import logging
 
@@ -397,6 +399,163 @@ class DriveService:
         )
         url = self._validate_temporary_url(session.get("uploadUrl"))
         return {"upload_url": url, "size": size, "name": name, "parent_id": parent_id}
+
+    # ------------------------------------------------------------
+    # Creación documental: contenidos reales, nunca extensiones vacías
+    # ------------------------------------------------------------
+
+    DOCUMENT_TYPES = {
+        "word": (".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        "excel": (".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        "powerpoint": (".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+        "text": (".txt", "text/plain; charset=utf-8"),
+        "markdown": (".md", "text/markdown; charset=utf-8"),
+        "csv": (".csv", "text/csv; charset=utf-8"),
+        "html": (".html", "text/html; charset=utf-8"),
+        "json": (".json", "application/json; charset=utf-8"),
+    }
+
+    @staticmethod
+    def _zip_parts(parts):
+        """Crear un paquete Office Open XML en memoria, sin librerías externas."""
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as package:
+            for path, content in parts.items():
+                package.writestr(path, content.encode("utf-8"))
+        return stream.getvalue()
+
+    @staticmethod
+    def _xml_header():
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+
+    @classmethod
+    def _office_document(cls, doc_type):
+        """Crear plantillas mínimas válidas para Office Online / Microsoft 365."""
+        h = cls._xml_header()
+        rels_ns = "http://schemas.openxmlformats.org/package/2006/relationships"
+        ct_ns = "http://schemas.openxmlformats.org/package/2006/content-types"
+        doc_rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+        root_rels = (h + f'<Relationships xmlns="{rels_ns}">'
+                     f'<Relationship Id="rId1" Type="{doc_rel}/officeDocument" '
+                     'Target="{target}"/></Relationships>')
+        if doc_type == "word":
+            parts = {
+                "[Content_Types].xml": h + f'<Types xmlns="{ct_ns}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+                "_rels/.rels": root_rels.format(target="word/document.xml"),
+                "word/document.xml": h + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p/><w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>',
+            }
+        elif doc_type == "excel":
+            parts = {
+                "[Content_Types].xml": h + f'<Types xmlns="{ct_ns}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+                "_rels/.rels": root_rels.format(target="xl/workbook.xml"),
+                "xl/workbook.xml": h + f'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="{doc_rel}"><sheets><sheet name="Hoja1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+                "xl/_rels/workbook.xml.rels": h + f'<Relationships xmlns="{rels_ns}"><Relationship Id="rId1" Type="{doc_rel}/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+                "xl/worksheets/sheet1.xml": h + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>',
+            }
+        elif doc_type == "powerpoint":
+            # Un archivo PPTX debe tener master/layout, tema y una diapositiva real.
+            p = "http://schemas.openxmlformats.org/presentationml/2006/main"
+            a = "http://schemas.openxmlformats.org/drawingml/2006/main"
+            slide_content = f'<p:cSld name="Diapositiva 1"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld>'
+            parts = {
+                "[Content_Types].xml": h + f'<Types xmlns="{ct_ns}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/></Types>',
+                "_rels/.rels": root_rels.format(target="ppt/presentation.xml"),
+                "ppt/presentation.xml": h + f'<p:presentation xmlns:p="{p}" xmlns:a="{a}" xmlns:r="{doc_rel}"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst><p:sldSz cx="12192000" cy="6858000" type="screen16x9"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>',
+                "ppt/_rels/presentation.xml.rels": h + f'<Relationships xmlns="{rels_ns}"><Relationship Id="rId1" Type="{doc_rel}/slideMaster" Target="slideMasters/slideMaster1.xml"/><Relationship Id="rId2" Type="{doc_rel}/slide" Target="slides/slide1.xml"/></Relationships>',
+                "ppt/slides/slide1.xml": h + f'<p:sld xmlns:p="{p}" xmlns:a="{a}" xmlns:r="{doc_rel}">{slide_content}<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>',
+                "ppt/slides/_rels/slide1.xml.rels": h + f'<Relationships xmlns="{rels_ns}"><Relationship Id="rId1" Type="{doc_rel}/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>',
+                "ppt/slideLayouts/slideLayout1.xml": h + f'<p:sldLayout xmlns:p="{p}" xmlns:a="{a}" xmlns:r="{doc_rel}" type="blank" preserve="1">{slide_content}<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>',
+                "ppt/slideLayouts/_rels/slideLayout1.xml.rels": h + f'<Relationships xmlns="{rels_ns}"><Relationship Id="rId1" Type="{doc_rel}/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>',
+                "ppt/slideMasters/slideMaster1.xml": h + f'<p:sldMaster xmlns:p="{p}" xmlns:a="{a}" xmlns:r="{doc_rel}">{slide_content}<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>',
+                "ppt/slideMasters/_rels/slideMaster1.xml.rels": h + f'<Relationships xmlns="{rels_ns}"><Relationship Id="rId1" Type="{doc_rel}/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="{doc_rel}/theme" Target="../theme/theme1.xml"/></Relationships>',
+                "ppt/theme/theme1.xml": h + f'<a:theme xmlns:a="{a}" name="Tema básico"><a:themeElements><a:clrScheme name="Office"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Office"><a:majorFont><a:latin typeface="Aptos Display"/></a:majorFont><a:minorFont><a:latin typeface="Aptos"/></a:minorFont></a:fontScheme><a:fmtScheme name="Office"><a:fillStyleLst><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:solidFill><a:schemeClr val="accent2"/></a:solidFill><a:solidFill><a:schemeClr val="accent3"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="9525"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill></a:ln><a:ln w="25400"><a:solidFill><a:schemeClr val="accent2"/></a:solidFill></a:ln><a:ln w="38100"><a:solidFill><a:schemeClr val="accent3"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="lt1"/></a:solidFill><a:solidFill><a:schemeClr val="lt2"/></a:solidFill><a:solidFill><a:schemeClr val="dk1"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>',
+            }
+        else:
+            raise UserError("Tipo de documento Office no permitido.")
+        return cls._zip_parts(parts)
+
+    @classmethod
+    def _new_content(cls, doc_type, text=""):
+        """Crear contenido real y editable; se rechazan tamaños exagerados."""
+        if doc_type in ("word", "excel", "powerpoint"):
+            return cls._office_document(doc_type)
+        if not isinstance(text, str) or len(text.encode("utf-8")) > 1024 * 1024:
+            raise UserError("El contenido inicial debe ser texto de hasta 1 MB.")
+        if doc_type == "json":
+            import json
+            try:
+                json.loads(text or "{}")
+            except ValueError as exc:
+                raise UserError("El contenido JSON no es válido.") from exc
+            text = text or "{}"
+        elif doc_type == "html":
+            text = text or '<!doctype html>\n<html lang="es"><head><meta charset="utf-8"><title>Documento</title></head><body></body></html>\n'
+        elif doc_type == "csv":
+            text = text or "Columna 1,Columna 2\r\n"
+        return text.encode("utf-8")
+
+    def create_document(self, name, doc_type, parent_id=None, content=""):
+        """Crear Word/Excel/PowerPoint/TXT/MD/CSV/HTML/JSON en el drive actual.
+
+        El controlador debe autorizar la operación upload (y el usuario debe
+        tener acceso de escritura). La creación se registra por el controlador.
+        """
+        self._check("upload")
+        if doc_type not in self.DOCUMENT_TYPES:
+            raise UserError("El tipo de documento solicitado no está disponible.")
+        suffix, mime = self.DOCUMENT_TYPES[doc_type]
+        filename = self._filename(name)
+        if not filename.lower().endswith(suffix):
+            filename = self._filename(filename + suffix)
+        if parent_id:
+            folder = self.client.request("GET", self._item(parent_id))
+            if folder.get("folder") is None:
+                raise UserError("El destino debe ser una carpeta existente.")
+        data = self._new_content(doc_type, content)
+        _logger.info(
+            "[MICROSOFT][CREATE_DOCUMENT][START] type=%s bytes=%d user=%s location=%s",
+            doc_type, len(data), self.user.id, self.location.id,
+        )
+        # Usar conflictBehavior=rename para no sobrescribir un documento existente.
+        path = self._item_path(filename, parent_id)
+        joiner = "&" if "?" in path else "?"
+        result = self.client.request(
+            "PUT", path + joiner + "@microsoft.graph.conflictBehavior=rename",
+            data=data,
+            headers={"Content-Type": "application/octet-stream"},
+            timeout=120,
+        )
+        if not isinstance(result, dict) or not result.get("id"):
+            raise UserError("Microsoft no confirmó la creación del documento.")
+        _logger.info(
+            "[MICROSOFT][CREATE_DOCUMENT][SUCCESS] type=%s item=%s location=%s",
+            doc_type, result["id"], self.location.id,
+        )
+        return result
+
+    def create_link_file(self, name, target_url, parent_id=None):
+        """Crear un archivo .url, no un vínculo especial de SharePoint."""
+        self._check("upload")
+        if not isinstance(target_url, str) or len(target_url) > 2048:
+            raise UserError("Indique una URL válida.")
+        try:
+            parsed = urlsplit(target_url)
+        except ValueError as exc:
+            raise UserError("La URL indicada no es válida.") from exc
+        if parsed.scheme.lower() != "https" or not parsed.hostname or parsed.username or parsed.password or any(ord(c) < 32 for c in target_url):
+            raise UserError("Los vínculos deben usar HTTPS y no contener credenciales.")
+        filename = self._filename(name)
+        if not filename.lower().endswith(".url"):
+            filename = self._filename(filename + ".url")
+        payload = ("[InternetShortcut]\r\nURL=" + target_url + "\r\n").encode("utf-8")
+        result = self.client.request(
+            "PUT", self._item_path(filename, parent_id) + "?@microsoft.graph.conflictBehavior=rename",
+            data=payload, headers={"Content-Type": "application/octet-stream"}, timeout=120,
+        )
+        if not isinstance(result, dict) or not result.get("id"):
+            raise UserError("Microsoft no confirmó la creación del vínculo.")
+        _logger.info("[MICROSOFT][CREATE_LINK] item=%s location=%s", result["id"], self.location.id)
+        return result
 
     def create_folder(self, name, parent_id=None):
 

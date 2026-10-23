@@ -106,6 +106,8 @@ export class OneDriveApp extends Component {
             uploading: false,
 
             uploadResults: [],
+            createMenuOpen: false,
+            creatingDocument: false,
 
         });
 
@@ -132,6 +134,7 @@ export class OneDriveApp extends Component {
         // bound handlers para poder removerlos correctamente
 
         this._onDocClick = this.closeCtxMenu.bind(this);
+        this._onCreateOutsideClick = this.onCreateOutsideClick.bind(this);
 
         this._onDocKey = this.onKeyDown.bind(this);
 
@@ -182,6 +185,7 @@ export class OneDriveApp extends Component {
         onMounted(() => {
 
             document.addEventListener("click", this._onDocClick);
+            document.addEventListener("click", this._onCreateOutsideClick);
 
             document.addEventListener("keydown", this._onDocKey);
 
@@ -190,6 +194,7 @@ export class OneDriveApp extends Component {
         onWillUnmount(() => {
 
             document.removeEventListener("click", this._onDocClick);
+            document.removeEventListener("click", this._onCreateOutsideClick);
 
             document.removeEventListener("keydown", this._onDocKey);
 
@@ -552,6 +557,12 @@ export class OneDriveApp extends Component {
     // INFORMACIÓN PARA LA INTERFAZ MODERNA
 
     // =========================================================
+
+    getThumbnailUrl(file, size = "medium") {
+        if (!file?.id || file.folder || !this.state.locationId) return "";
+        const safeSize = ["small", "medium", "large"].includes(size) ? size : "medium";
+        return `/microsoft/thumbnail/${encodeURIComponent(String(file.id))}?location_id=${encodeURIComponent(String(this.state.locationId))}&size=${safeSize}`;
+    }
 
     getStats() {
 
@@ -1217,6 +1228,167 @@ export class OneDriveApp extends Component {
 
 
 
+    // =========================================================
+    // CREAR O SUBIR: menú único y creación real en SharePoint
+    // =========================================================
+
+    toggleCreateMenu() {
+        if (this.selectorMode || !this.canEdit() || this.state.uploading || this.state.creatingDocument) {
+            return;
+        }
+        this.state.createMenuOpen = !this.state.createMenuOpen;
+    }
+
+    closeCreateMenu() {
+        this.state.createMenuOpen = false;
+    }
+
+    onCreateOutsideClick(ev) {
+        if (!this.state.createMenuOpen) return;
+        const element = ev.target;
+        if (!element?.closest?.(".od_create_dropdown")) this.closeCreateMenu();
+    }
+
+    createMenuUpload(kind) {
+        this.closeCreateMenu();
+        if (kind === "folder") this.triggerFolderUpload();
+        else this.triggerUpload();
+    }
+
+    createMenuFolder() {
+        this.closeCreateMenu();
+        this.createFolder();
+    }
+
+    /**
+     * Tipos admitidos por DriveService.DOCUMENT_TYPES. El servidor valida
+     * de nuevo tipo, nombre, ubicación y permiso de escritura.
+     */
+    createNewDocument(docType) {
+        this.closeCreateMenu();
+        if (this.selectorMode || !this.canEdit() || this.state.creatingDocument) return;
+        const types = {
+            word: ["Documento de Word", "Documento", "bi-file-earmark-word"],
+            excel: ["Libro de Excel", "Libro", "bi-file-earmark-excel"],
+            powerpoint: ["Presentación de PowerPoint", "Presentación", "bi-file-earmark-ppt"],
+            text: ["Documento de texto", "Documento", "bi-file-earmark-text"],
+            markdown: ["Documento Markdown", "Documento", "bi-markdown"],
+            csv: ["Archivo CSV", "Datos", "bi-filetype-csv"],
+            html: ["Documento HTML", "Documento", "bi-filetype-html"],
+            json: ["Documento JSON", "Datos", "bi-filetype-json"],
+        };
+        const info = types[docType];
+        if (!info) {
+            this.notify(_t("Este formato no está disponible"), "warning");
+            return;
+        }
+        const locationId = this.state.locationId;
+        const parentId = this.state.currentFolder;
+        if (!locationId) return;
+        this.dialog.add(PromptDialog, {
+            title: _t("Crear %s", info[0]),
+            label: _t("Nombre del documento"),
+            placeholder: info[1],
+            icon: info[2],
+            confirmLabel: _t("Crear"),
+            onConfirm: async (name) => {
+                if (!name || !String(name).trim()) {
+                    this.notify(_t("Escribe un nombre para el documento"), "warning");
+                    return;
+                }
+                if (this.state.creatingDocument) return;
+                this.state.creatingDocument = true;
+                try {
+                    const item = await rpc("/microsoft/create_document", {
+                        name: String(name).trim(),
+                        doc_type: docType,
+                        parent_id: parentId,
+                        location_id: locationId,
+                        content: "",
+                    });
+                    console.info("[MICROSOFT][CREATE_DOCUMENT][SUCCESS]", {
+                        type: docType, itemId: item?.id, locationId,
+                    });
+                    this.notify(_t("Documento creado: %s", item?.name || name), "success");
+                    if (this.state.locationId === locationId && this.state.currentFolder === parentId) {
+                        await this.loadFiles(parentId);
+                    }
+                    // Abrir únicamente el vínculo web devuelto por Graph.
+                    if (item?.webUrl && /^https:\/\//i.test(item.webUrl)) {
+                        window.open(item.webUrl, "_blank", "noopener,noreferrer");
+                    }
+                } catch (error) {
+                    console.error("[MICROSOFT][CREATE_DOCUMENT][ERROR]", error);
+                    this.notify(this.errorMessage(error), "danger");
+                } finally {
+                    this.state.creatingDocument = false;
+                }
+            },
+        });
+    }
+
+    /** Crea un fichero .url, sin presentarlo como vínculo nativo de SharePoint. */
+    createNewLink() {
+        this.closeCreateMenu();
+        if (this.selectorMode || !this.canEdit() || this.state.creatingDocument) return;
+        const locationId = this.state.locationId;
+        const parentId = this.state.currentFolder;
+        this.dialog.add(PromptDialog, {
+            title: _t("Nuevo vínculo"),
+            label: _t("Nombre del vínculo"),
+            placeholder: _t("Enlace de referencia"),
+            icon: "bi-link-45deg",
+            confirmLabel: _t("Continuar"),
+            onConfirm: (name) => {
+                if (!name || !String(name).trim()) {
+                    this.notify(_t("Escribe un nombre para el vínculo"), "warning");
+                    return;
+                }
+                this.dialog.add(PromptDialog, {
+                    title: _t("Dirección del vínculo"),
+                    label: _t("URL HTTPS"),
+                    placeholder: "https://",
+                    icon: "bi-link-45deg",
+                    confirmLabel: _t("Crear vínculo"),
+                    onConfirm: async (targetUrl) => {
+                        let address;
+                        try {
+                            address = new URL(String(targetUrl || "").trim());
+                            if (address.protocol !== "https:" || address.username || address.password) {
+                                throw new Error("invalid_url");
+                            }
+                        } catch (_error) {
+                            this.notify(_t("Indica una dirección HTTPS válida"), "warning");
+                            return;
+                        }
+                        if (this.state.creatingDocument) return;
+                        this.state.creatingDocument = true;
+                        try {
+                            const item = await rpc("/microsoft/create_link", {
+                                name: String(name).trim(),
+                                target_url: address.toString(),
+                                parent_id: parentId,
+                                location_id: locationId,
+                            });
+                            console.info("[MICROSOFT][CREATE_LINK][SUCCESS]", {
+                                itemId: item?.id, locationId,
+                            });
+                            this.notify(_t("Vínculo creado: %s", item?.name || name), "success");
+                            if (this.state.locationId === locationId && this.state.currentFolder === parentId) {
+                                await this.loadFiles(parentId);
+                            }
+                        } catch (error) {
+                            console.error("[MICROSOFT][CREATE_LINK][ERROR]", error);
+                            this.notify(this.errorMessage(error), "danger");
+                        } finally {
+                            this.state.creatingDocument = false;
+                        }
+                    },
+                });
+            },
+        });
+    }
+
     async createFolder() {
 
         if (this.selectorMode || !this.canEdit()) return;
@@ -1712,6 +1884,7 @@ export class OneDriveApp extends Component {
 
         if (ev.key === "Escape") {
 
+            this.closeCreateMenu();
             this.state.selected = new Set();
 
             if (this.selectorMode) {

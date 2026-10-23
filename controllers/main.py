@@ -128,6 +128,93 @@ class MicrosoftDocumentsController(http.Controller):
                     item_name=result.get("name"))
         return result
 
+    # ------------------------------------------------------------
+    # Crear documentos nuevos directamente en la biblioteca Microsoft 365.
+    # Estas rutas se corresponden exactamente con DriveService de fase 1.
+    # ------------------------------------------------------------
+
+    @http.route("/microsoft/create_document", type="jsonrpc", auth="user")
+    def create_document(self, name, doc_type, parent_id=None, location_id=None, content=""):
+        """Crear documento válido en SharePoint/OneDrive, sin adjuntos Odoo.
+
+        Tipos soportados son los declarados por DriveService.DOCUMENT_TYPES.
+        La autorización de escritura se comprueba en controlador y servicio.
+        """
+        location = None
+        try:
+            location, service = self._service("upload", location_id)
+            if not isinstance(doc_type, str) or doc_type not in service.DOCUMENT_TYPES:
+                raise UserError("Tipo de documento no admitido.")
+            if not isinstance(name, str) or not name.strip():
+                raise UserError("Indique un nombre para el documento.")
+            if not isinstance(content, str) or len(content.encode("utf-8")) > 2 * 1024 * 1024:
+                raise UserError("El contenido de texto supera el límite de 2 MB.")
+            _logger.info(
+                "[MICROSOFT][CREATE_DOCUMENT][REQUEST] user=%s location=%s parent=%s type=%s",
+                request.env.user.id, location.id, parent_id, doc_type,
+            )
+            result = service.create_document(name, doc_type, parent_id, content)
+            self._audit(
+                "upload", location, item_id=result.get("id"),
+                item_name=result.get("name") or name,
+                message="Documento nuevo: %s" % doc_type,
+            )
+            _logger.info(
+                "[MICROSOFT][CREATE_DOCUMENT][OK] user=%s location=%s type=%s item=%s",
+                request.env.user.id, location.id, doc_type, result.get("id"),
+            )
+            return result
+        except (AccessError, UserError) as exc:
+            _logger.warning(
+                "[MICROSOFT][CREATE_DOCUMENT][DENIED] user=%s location=%s type=%s error=%s",
+                request.env.user.id, location_id, str(doc_type)[:40], str(exc)[:250],
+            )
+            if location:
+                self._audit("upload", location, status="error", message="Fallo al crear documento")
+            raise
+        except Exception:
+            _logger.exception(
+                "[MICROSOFT][CREATE_DOCUMENT][ERROR] user=%s location=%s type=%s",
+                request.env.user.id, location_id, str(doc_type)[:40],
+            )
+            raise
+
+    @http.route("/microsoft/create_link", type="jsonrpc", auth="user")
+    def create_link(self, name, target_url, parent_id=None, location_id=None):
+        """Crear un acceso directo .url; no equivale a un enlace nativo SharePoint."""
+        location = None
+        try:
+            location, service = self._service("upload", location_id)
+            _logger.info(
+                "[MICROSOFT][CREATE_LINK][REQUEST] user=%s location=%s parent=%s",
+                request.env.user.id, location.id, parent_id,
+            )
+            result = service.create_link_file(name, target_url, parent_id)
+            self._audit(
+                "upload", location, item_id=result.get("id"),
+                item_name=result.get("name") or name,
+                message="Vínculo .url creado",
+            )
+            _logger.info(
+                "[MICROSOFT][CREATE_LINK][OK] user=%s location=%s item=%s",
+                request.env.user.id, location.id, result.get("id"),
+            )
+            return result
+        except (AccessError, UserError) as exc:
+            _logger.warning(
+                "[MICROSOFT][CREATE_LINK][DENIED] user=%s location=%s reason=%s",
+                request.env.user.id, location_id, str(exc)[:250],
+            )
+            if location:
+                self._audit("upload", location, status="error", message="Fallo al crear vínculo")
+            raise
+        except Exception:
+            _logger.exception(
+                "[MICROSOFT][CREATE_LINK][ERROR] user=%s location=%s",
+                request.env.user.id, location_id,
+            )
+            raise
+
     @http.route("/microsoft/rename", type="jsonrpc", auth="user")
     def rename_item(self, item_id, new_name, location_id=None):
         location, service = self._service("rename", location_id)

@@ -2665,3 +2665,181 @@
     .o_onedrive_app .od_stats { flex-wrap: wrap; }
     .o_onedrive_app .od_grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 }
+
+/* ============================================================
+   ODOO 19 | MENÚ ÚNICO «CREAR O SUBIR»
+   Compatible con el XML y JS de la fase de creación documental.
+   Las reglas se mantienen bajo .o_onedrive_app para evitar
+   afectar otros componentes del backend.
+   ============================================================ */
+.o_onedrive_app {
+    .od_toolbar {
+        position: relative;
+        z-index: 40;
+        overflow: visible;
+    }
+
+    .od_toolbar_actions {
+        overflow: visible;
+    }
+
+    .od_create_dropdown {
+        position: relative;
+        display: inline-flex;
+        align-items: stretch;
+        flex: 0 0 auto;
+        isolation: isolate;
+
+        &.is-open {
+            z-index: 110;
+        }
+    }
+
+    .od_create_trigger {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        gap: 9px;
+        min-height: 38px;
+        padding: 8px 14px;
+        border: 1px solid #0067b8;
+        border-radius: 9px;
+        background: #0078d4;
+        color: #fff;
+        font-weight: 600;
+        font-size: 13px;
+        line-height: 1.2;
+        box-shadow: 0 2px 5px rgba(0, 103, 184, .15);
+        transition: background-color .15s ease, box-shadow .15s ease;
+        white-space: nowrap;
+
+        .bi-plus-lg { font-size: 16px; }
+        .bi-chevron-down,
+        .bi-chevron-up { font-size: 11px; margin-left: 2px; opacity: .88; }
+
+        &:hover,
+        &:focus-visible,
+        &:active {
+            color: #fff;
+            background: #005ea6;
+            border-color: #005ea6;
+        }
+
+        &:focus-visible {
+            outline: 3px solid rgba(0, 120, 212, .28);
+            outline-offset: 2px;
+        }
+
+        &:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+    }
+
+    .od_create_menu {
+        position: absolute;
+        top: calc(100% + 7px);
+        left: 0;
+        z-index: 120;
+        width: 280px;
+        max-width: calc(100vw - 32px);
+        max-height: min(72vh, 580px);
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 7px;
+        border: 1px solid #dbe3ee;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 14px 38px rgba(15, 23, 42, .19),
+                    0 2px 7px rgba(15, 23, 42, .08);
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+        animation: od-create-menu-appear .14s ease-out;
+    }
+
+    .od_create_menu_group {
+        padding: 8px 10px 5px;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        user-select: none;
+    }
+
+    .od_create_menu_item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 39px;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: #1e293b;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.35;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color .12s ease;
+
+        .bi {
+            flex: 0 0 20px;
+            width: 20px;
+            font-size: 19px;
+            line-height: 1;
+            text-align: center;
+            color: #64748b;
+        }
+
+        span { flex: 1 1 auto; }
+
+        .od_create_icon_folder { color: #d69f24; }
+        .od_create_icon_word { color: #185abd; }
+        .od_create_icon_excel { color: #107c41; }
+        .od_create_icon_powerpoint { color: #c43e1c; }
+
+        &:hover { background: #f1f7fd; color: #075da1; }
+        &:active { background: #e4f1fc; }
+        &:focus-visible {
+            outline: 2px solid #0078d4;
+            outline-offset: -2px;
+            background: #eff6ff;
+        }
+        &:disabled { opacity: .45; cursor: not-allowed; }
+    }
+
+    .od_create_menu_separator {
+        height: 1px;
+        margin: 7px 6px;
+        background: #e8eef5;
+    }
+}
+
+@keyframes od-create-menu-appear {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 767.98px) {
+    .o_onedrive_app {
+        .od_toolbar { z-index: 45; }
+        .od_create_dropdown { max-width: 100%; }
+        .od_create_trigger { min-height: 40px; padding: 9px 12px; }
+        .od_create_menu {
+            width: min(290px, calc(100vw - 28px));
+            max-height: min(65vh, 510px);
+        }
+        .od_create_menu_item { min-height: 43px; }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_onedrive_app .od_create_menu { animation: none; }
+    .o_onedrive_app .od_create_menu_item,
+    .o_onedrive_app .od_create_trigger { transition: none; }
+}

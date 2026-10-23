@@ -71,12 +71,64 @@
                     </select>
                 </div>
                 <div class="od_toolbar_actions">
+                    <!-- MENÚ ÚNICO: creación real en Microsoft 365 y cargas existentes -->
                     <t t-if="!selectorMode and canEdit()">
-                        <button class="btn od_btn_new" t-on-click="() => this.createFolder()"><i class="bi bi-plus-lg"/> Nueva carpeta</button>
-                        <button class="btn od_btn_upload" t-on-click="() => this.triggerUpload()"><i class="bi bi-cloud-arrow-up"/> Subir archivos</button>
-                         <button class="btn od_btn_upload" t-on-click="() => this.triggerFolderUpload()"><i class="bi bi-folder-symlink"/> Subir carpeta</button>
+                        <div class="od_create_dropdown" t-att-class="{'is-open': state.createMenuOpen}">
+                            <button type="button" class="btn od_btn_new od_create_trigger"
+                                    t-att-disabled="state.uploading or state.creatingDocument"
+                                    t-att-aria-expanded="state.createMenuOpen ? 'true' : 'false'"
+                                    aria-haspopup="true"
+                                    t-on-click.stop="() => this.toggleCreateMenu()">
+                                <i class="bi bi-plus-lg"/>
+                                <span>Crear o subir</span>
+                                <i t-att-class="state.createMenuOpen ? 'bi bi-chevron-up' : 'bi bi-chevron-down'"/>
+                            </button>
+                            <div t-if="state.createMenuOpen" class="od_create_menu" role="menu">
+                                <div class="od_create_menu_group">Crear</div>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createMenuFolder()">
+                                    <i class="bi bi-folder-plus od_create_icon_folder"/><span>Carpeta</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewDocument('word')">
+                                    <i class="bi bi-file-earmark-word od_create_icon_word"/><span>Documento de Word</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewDocument('excel')">
+                                    <i class="bi bi-file-earmark-excel od_create_icon_excel"/><span>Libro de Excel</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewDocument('powerpoint')">
+                                    <i class="bi bi-file-earmark-ppt od_create_icon_powerpoint"/><span>Presentación de PowerPoint</span>
+                                </button>
+                                <div class="od_create_menu_separator"/>
+                                <div class="od_create_menu_group">Otros documentos</div>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewDocument('text')">
+                                    <i class="bi bi-file-earmark-text"/><span>Texto (.txt)</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewDocument('markdown')">
+                                    <i class="bi bi-markdown"/><span>Markdown (.md)</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewDocument('csv')">
+                                    <i class="bi bi-filetype-csv"/><span>CSV</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewDocument('html')">
+                                    <i class="bi bi-filetype-html"/><span>HTML</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewDocument('json')">
+                                    <i class="bi bi-filetype-json"/><span>JSON</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createNewLink()">
+                                    <i class="bi bi-link-45deg"/><span>Vínculo (.url)</span>
+                                </button>
+                                <div class="od_create_menu_separator"/>
+                                <div class="od_create_menu_group">Subir</div>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createMenuUpload('files')">
+                                    <i class="bi bi-cloud-arrow-up"/><span>Archivos</span>
+                                </button>
+                                <button type="button" role="menuitem" class="od_create_menu_item" t-on-click.stop="() => this.createMenuUpload('folder')">
+                                    <i class="bi bi-folder-symlink"/><span>Carpeta completa</span>
+                                </button>
+                            </div>
+                        </div>
                         <input type="file" t-ref="fileInput" multiple="multiple" style="display:none;" t-on-change="uploadFile"/>
-                         <input type="file" t-ref="folderInput" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple" style="display:none;" t-on-change="uploadFile"/>
+                        <input type="file" t-ref="folderInput" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple" style="display:none;" t-on-change="uploadFile"/>
                     </t>
                     <t t-if="state.selected.size > 0">
                         <span class="od_selcount"><i class="bi bi-check-circle-fill"/> <t t-esc="state.selected.size"/> seleccionados</span>
@@ -145,7 +197,7 @@
             <i class="bi bi-folder2-open"/>
             <h3 t-if="state.searching">No hay resultados para "<t t-esc="state.search"/>"</h3>
             <h3 t-else="">Esta carpeta está vacía</h3>
-            <p t-if="!selectorMode">Arrastra archivos aquí o haz clic en Subir</p>
+            <p t-if="!selectorMode">Arrastra archivos aquí o utiliza Crear o subir</p>
             </div>
 
             <div class="od_content_shell" t-if="!state.loading and !state.error and state.filteredFiles.length > 0">
