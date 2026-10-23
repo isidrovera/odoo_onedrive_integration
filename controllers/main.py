@@ -213,32 +213,117 @@ class MicrosoftDocumentsController(http.Controller):
         self._audit("permission_remove", location, item_id=item_id)
         return result or {"status": "removed"}
 
-    @http.route("/microsoft/thumbnail/<string:item_id>", type="http", auth="user")
+    @http.route("/microsoft/thumbnail/<string:item_id>", type="http", auth="user", methods=["GET"])
     def thumbnail(self, item_id, size="medium", location_id=None):
+        """Proxy protegido de miniaturas, con diagnóstico de cada etapa.
+
+        No registra URL firmadas, tokens ni contenido del archivo.
+        No utiliza sudo para saltar permisos de la ubicación.
+        """
         remote = None
+        location = None
+        user_id = request.env.user.id
+        stage = "validate"
+        _logger.info(
+            "[MICROSOFT][THUMBNAIL][START] user=%s location=%s item=%s size=%s",
+            user_id, location_id, item_id, size,
+        )
         try:
+            if size not in ("small", "medium", "large"):
+                _logger.warning("[MICROSOFT][THUMBNAIL][INVALID_SIZE] size=%s", size)
+                return Response(status=400)
+
+            stage = "odoo_access"
             location, service = self._service("preview", location_id)
-            url = service.get_thumbnail_url(item_id, size)
-            if not url:
+            _logger.info(
+                "[MICROSOFT][THUMBNAIL][ACCESS_OK] user=%s location=%s item=%s",
+                user_id, location.id, item_id,
+            )
+
+            stage = "graph_thumbnail"
+            thumbnail_url = service.get_thumbnail_url(item_id, size)
+            if not thumbnail_url:
+                _logger.info(
+                    "[MICROSOFT][THUMBNAIL][NOT_AVAILABLE] location=%s item=%s size=%s",
+                    location.id, item_id, size,
+                )
                 return Response(status=404)
-            remote = self._temporary_get(url, timeout=30)
-            if remote.status_code >= 400:
-                return Response(status=404)
-            if len(remote.content) > 10 * 1024 * 1024:
-                return Response(status=413)
-            content_type = remote.headers.get("Content-Type", "image/jpeg").split(";")[0]
-            if not content_type.startswith("image/"):
+
+            stage = "download_thumbnail"
+            # streaming evita alojar una respuesta arbitrariamente grande en memoria
+            remote = self._temporary_get(thumbnail_url, stream=True, timeout=30)
+            if remote.status_code != 200:
+                _logger.warning(
+                    "[MICROSOFT][THUMBNAIL][REMOTE_STATUS] location=%s item=%s status=%s",
+                    location.id, item_id, remote.status_code,
+                )
+                return Response(status=502)
+
+            mime = remote.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            # Solo formatos de imagen que el navegador puede mostrar sin riesgo de SVG activo.
+            if mime not in ("image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp"):
+                _logger.warning(
+                    "[MICROSOFT][THUMBNAIL][INVALID_MIME] location=%s item=%s mime=%s",
+                    location.id, item_id, mime[:100],
+                )
                 return Response(status=415)
-            return request.make_response(remote.content, headers=[
-                ("Content-Type", content_type),
+
+            limit = 10 * 1024 * 1024
+            content_length = remote.headers.get("Content-Length")
+            if content_length:
+                try:
+                    if int(content_length) > limit:
+                        _logger.warning("[MICROSOFT][THUMBNAIL][TOO_LARGE] item=%s", item_id)
+                        return Response(status=413)
+                except (ValueError, TypeError):
+                    pass
+            chunks = []
+            total = 0
+            for chunk in remote.iter_content(chunk_size=64 * 1024):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > limit:
+                    _logger.warning("[MICROSOFT][THUMBNAIL][TOO_LARGE] item=%s", item_id)
+                    return Response(status=413)
+                chunks.append(chunk)
+            if not total:
+                _logger.info("[MICROSOFT][THUMBNAIL][EMPTY] item=%s", item_id)
+                return Response(status=404)
+
+            _logger.info(
+                "[MICROSOFT][THUMBNAIL][SUCCESS] location=%s item=%s bytes=%s mime=%s",
+                location.id, item_id, total, mime,
+            )
+            return request.make_response(b"".join(chunks), headers=[
+                ("Content-Type", mime),
                 ("Cache-Control", "private, max-age=300"),
                 ("X-Content-Type-Options", "nosniff"),
             ])
-        except (AccessError, UserError):
+        except AccessError as exc:
+            _logger.warning(
+                "[MICROSOFT][THUMBNAIL][ACCESS_DENIED] stage=%s user=%s location=%s item=%s reason=%s",
+                stage, user_id, location_id, item_id, str(exc)[:300],
+            )
             return Response(status=403)
-        except http_requests.RequestException:
-            _logger.exception("Microsoft thumbnail network error")
+        except UserError as exc:
+            _logger.warning(
+                "[MICROSOFT][THUMBNAIL][SERVICE_ERROR] stage=%s user=%s location=%s item=%s reason=%s",
+                stage, user_id, location_id, item_id, str(exc)[:300],
+            )
             return Response(status=502)
+        except http_requests.RequestException:
+            _logger.exception(
+                "[MICROSOFT][THUMBNAIL][NETWORK_ERROR] stage=%s user=%s location=%s item=%s",
+                stage, user_id, location_id, item_id,
+            )
+            return Response(status=502)
+        except Exception:
+            _logger.exception(
+                "[MICROSOFT][THUMBNAIL][UNEXPECTED_ERROR] stage=%s user=%s location=%s item=%s",
+                stage, user_id, location_id, item_id,
+            )
+            return Response(status=500)
         finally:
             if remote is not None:
                 remote.close()
@@ -322,7 +407,11 @@ class MicrosoftDocumentsController(http.Controller):
     @http.route("/microsoft/upload_session", type="jsonrpc", auth="user")
     def upload_session(self, name, size, parent_id=None, location_id=None):
         location, service = self._service("upload", location_id)
+        _logger.info("[MICROSOFT][UPLOAD][SESSION_START] user=%s location=%s name=%s bytes=%s parent=%s",
+                     request.env.user.id, location.id, str(name)[:120], size, parent_id)
         session = service.start_chunk_upload(name, size, parent_id)
+        _logger.info("[MICROSOFT][UPLOAD][SESSION_CREATED] user=%s location=%s bytes=%s",
+                     request.env.user.id, location.id, session["size"])
         proof = self._sign_upload({
             "uid": request.env.user.id, "location": location.id,
             "size": session["size"], "exp": int(time.time()) + 12 * 3600,
@@ -351,6 +440,8 @@ class MicrosoftDocumentsController(http.Controller):
             remote = http_requests.put(url, data=content, headers={
                 "Content-Length": str(size), "Content-Range": f"bytes {start}-{end-1}/{total}",
             }, timeout=180, allow_redirects=False)
+            _logger.debug("[MICROSOFT][UPLOAD][CHUNK_RESPONSE] location=%s range=%s-%s status=%s",
+                          location_id, start, end, remote.status_code)
             if remote.status_code not in (200, 201, 202):
                 _logger.warning("[MICROSOFT] Fragmento rechazado status=%s", remote.status_code)
                 return self._json({"status":"error", "message":f"Microsoft rechazó el fragmento ({remote.status_code})"}, 502)
@@ -360,11 +451,15 @@ class MicrosoftDocumentsController(http.Controller):
                     raise UserError("Microsoft no confirmó el identificador del archivo.")
                 location = self._location(location_id)
                 self._audit("upload", location, item_id=payload["id"], item_name=payload.get("name"))
+                _logger.info("[MICROSOFT][UPLOAD][COMPLETE] location=%s item=%s bytes=%s",
+                             location.id, payload["id"], total)
                 return self._json({"status": "ok", "item": payload})
             ranges = payload.get("nextExpectedRanges") or []
             next_offset = int(str(ranges[0]).split("-")[0]) if ranges else end
             return self._json({"status": "ok", "next_offset": next_offset})
         except (UserError, AccessError, TypeError, ValueError) as exc:
+            _logger.warning("[MICROSOFT][UPLOAD][CHUNK_FAILED] user=%s location=%s error=%s",
+                            request.env.user.id, post.get("location_id"), str(exc)[:300])
             return self._json({"status":"error", "message":str(exc)}, 403 if isinstance(exc, AccessError) else 400)
         except http_requests.RequestException:
             _logger.exception("[MICROSOFT] Error de transferencia de fragmento")
