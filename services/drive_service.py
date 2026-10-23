@@ -56,9 +56,11 @@ class DriveService:
 
     _ALLOWED_DOWNLOAD_DOMAINS = (
 
-        "sharepoint.com", "sharepoint-df.com", "1drv.com",
+        "sharepoint.com", "sharepoint-df.com", "sharepointonline.com",
 
-        "onedrive.com", "onedrive.live.com",
+        "1drv.com", "onedrive.com", "onedrive.live.com",
+
+        "svc.ms", "livefilestore.com", "storage.live.com",
 
     )
 
@@ -209,45 +211,81 @@ class DriveService:
 
 
     @classmethod
+    def _validate_temporary_url(cls, url, *, extra_hosts=()):
+        """Validar URL temporal evitando SSRF y filtración de credenciales.
 
-    def _validate_temporary_url(cls, url):
-
-        """Prohíbe HTTP, credenciales en URL y hosts fuera de Microsoft.
-
-
-
-        Las URL temporales de carga/descarga deben consumirse sin agregar el
-
-        token Graph; la propia URL ya es una credencial temporal.
-
+        Se admite una lista explícita de hosts adicionales solo para miniaturas,
+        obtenida desde configuración administrativa. Nunca se siguen redirecciones.
+        No se registra la URL completa: contiene credenciales temporales.
         """
-
-        if not isinstance(url, str) or len(url) > 10000:
-
+        if not isinstance(url, str) or not url or len(url) > 10000:
             raise UserError("Microsoft no devolvió una URL temporal válida.")
+        try:
+            parts = urlsplit(url)
+            host = (parts.hostname or "").lower().rstrip(".")
+            port = parts.port
+        except ValueError as exc:
+            raise UserError("Microsoft devolvió una URL temporal mal formada.") from exc
 
-        parts = urlsplit(url)
-
-        host = (parts.hostname or "").lower()
-
-        if (
-
-            parts.scheme.lower() != "https" or not host or
-
-            parts.username is not None or parts.password is not None or
-
-            parts.port not in (None, 443) or parts.fragment or
-
-            not any(host == domain or host.endswith("." + domain)
-
-                    for domain in cls._ALLOWED_DOWNLOAD_DOMAINS)
-
-        ):
-
-            raise UserError("La dirección temporal no pertenece a un dominio autorizado de Microsoft.")
-
+        # La lista extra son nombres EXACTOS, sin subdominios automáticos.
+        extras = {
+            value.lower().strip().rstrip(".")
+            for value in extra_hosts
+            if isinstance(value, str) and value.strip()
+        }
+        matches_microsoft = any(
+            host == domain or host.endswith("." + domain)
+            for domain in cls._ALLOWED_DOWNLOAD_DOMAINS
+        )
+        allowed_host = matches_microsoft or host in extras
+        valid_structure = (
+            parts.scheme.lower() == "https"
+            and bool(host)
+            and parts.username is None
+            and parts.password is None
+            and port in (None, 443)
+            and not parts.fragment
+            and not any(ord(ch) < 32 for ch in url)
+        )
+        if not valid_structure or not allowed_host:
+            _logger.warning(
+                "[MICROSOFT][TEMP_URL][REJECT] host=%s allowed=%s "
+                "https=%s port=%s userinfo=%s",
+                host[:253], allowed_host, parts.scheme.lower() == "https",
+                port, bool(parts.username or parts.password),
+            )
+            raise UserError(
+                "La dirección temporal no pertenece a un dominio autorizado de Microsoft. "
+                "Revise el host registrado en los logs de Odoo."
+            )
+        _logger.debug("[MICROSOFT][TEMP_URL][OK] host=%s", host)
         return url
 
+    def _thumbnail_extra_hosts(self):
+        """Hosts adicionales explícitos aprobados por el administrador.
+
+        Parámetro opcional: microsoft365.thumbnail_extra_hosts
+        Lista separada por comas o saltos de línea, solo nombres DNS exactos.
+        """
+        raw = self.env["ir.config_parameter"].sudo().get_param(
+            "microsoft365.thumbnail_extra_hosts", ""
+        ) or ""
+        hosts = []
+        for candidate in re.split(r"[,;\s]+", raw):
+            candidate = candidate.strip().lower().rstrip(".")
+            if not candidate:
+                continue
+            if (len(candidate) > 253 or not re.fullmatch(
+                r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+",
+                candidate,
+            ) or candidate.startswith("xn--")):
+                _logger.warning(
+                    "[MICROSOFT][THUMBNAIL] Host adicional inválido omitido: %s",
+                    candidate[:120],
+                )
+                continue
+            hosts.append(candidate)
+        return tuple(hosts)
 
 
     # ------------------------------------------------------------
@@ -472,7 +510,9 @@ class DriveService:
 
             if thumbnail.get("url"):
 
-                return self._validate_temporary_url(thumbnail["url"])
+                return self._validate_temporary_url(
+                    thumbnail["url"], extra_hosts=self._thumbnail_extra_hosts()
+                )
 
         return None
 
