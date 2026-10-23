@@ -167,7 +167,7 @@
 
                     <div class="od_card_thumb" t-on-click="() => this.openFolder(file)">
                         <t t-if="!file.folder">
-                             <img t-att-src="`/microsoft/thumbnail/${encodeURIComponent(file.id)}?location_id=${state.locationId}&amp;size=medium`"
+                             <img t-att-src="getThumbnailUrl(file, 'medium')"
                                   loading="lazy" alt="Vista previa"
                                   t-on-error="(ev) => { ev.target.style.display = 'none'; ev.target.nextElementSibling.style.display = 'flex'; }"/>
                          </t>
@@ -283,7 +283,7 @@
                     </div>
                     <div class="od_details_preview">
                         <t t-set="detailIcon" t-value="getFileIcon(state.detailFile)"/>
-                        <img t-if="!state.detailFile.folder" t-att-src="`/microsoft/thumbnail/${encodeURIComponent(state.detailFile.id)}?location_id=${state.locationId}&amp;size=large`" loading="lazy" alt="Miniatura" t-on-error="(ev) => ev.target.style.display = 'none'"/>
+                        <img t-if="!state.detailFile.folder" t-att-src="getThumbnailUrl(state.detailFile, 'large')" loading="lazy" alt="Miniatura" t-on-error="(ev) => ev.target.style.display = 'none'"/>
                          <i t-att-class="`bi ${detailIcon.icon}`" t-att-style="`color:${detailIcon.color};`"/>
                     </div>
                     <div class="od_details_tabs">
