@@ -2744,7 +2744,8 @@
         z-index: 120;
         width: 280px;
         max-width: calc(100vw - 32px);
-        max-height: min(72vh, 580px);
+        max-height: 580px;
+        max-height: 72vh;
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -2831,8 +2832,10 @@
         .od_create_dropdown { max-width: 100%; }
         .od_create_trigger { min-height: 40px; padding: 9px 12px; }
         .od_create_menu {
-            width: min(290px, calc(100vw - 28px));
-            max-height: min(65vh, 510px);
+            width: 290px;
+            max-width: calc(100vw - 28px);
+            max-height: 510px;
+            max-height: 65vh;
         }
         .od_create_menu_item { min-height: 43px; }
     }
