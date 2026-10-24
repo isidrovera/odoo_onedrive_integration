@@ -6,7 +6,7 @@ mediante acciones de servidor que comprueben el rol administrativo correspondien
 """
 import logging
 import re
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from odoo import fields
 from odoo.exceptions import UserError
@@ -20,6 +20,11 @@ class DirectoryService:
     PAGE_SIZE = 100
     MAX_SYNC_GROUPS = 5000
     _GUID = re.compile(r"^[a-fA-F0-9-]{32,36}$")
+    USER_SELECT = (
+        "id,displayName,mail,userPrincipalName,userType,"
+        "externalUserState,externalUserStateChangeDateTime,"
+        "accountEnabled,otherMails"
+    )
 
     def __init__(self, tenant):
         tenant.ensure_one()
@@ -65,7 +70,7 @@ class DirectoryService:
         )
         data = self.client.request("GET", "/users", params={
             "$filter": filt,
-            "$select": "id,displayName,mail,userPrincipalName,userType,externalUserState,accountEnabled,otherMails",
+            "$select": self.USER_SELECT,
             "$top": "20",
         })
         matches = data.get("value", []) if isinstance(data, dict) else []
@@ -79,7 +84,7 @@ class DirectoryService:
         try:
             data = self.client.request("GET", "/users", params={
                 "$filter": "otherMails/any(x:x eq '%s')" % self._escape(email),
-                "$select": "id,displayName,mail,userPrincipalName,userType,externalUserState,accountEnabled,otherMails",
+                "$select": self.USER_SELECT,
                 "$top": "20",
                 "$count": "true",
             }, headers={"ConsistencyLevel": "eventual"})
@@ -93,7 +98,36 @@ class DirectoryService:
         return None
 
     def get_user(self, user_id):
-        return self.client.request("GET", "/users/%s" % self._segment(user_id), expected=(404,))
+        """Leer explícitamente el estado B2B; Graph no lo devuelve por defecto."""
+        user = self.client.request(
+            "GET", "/users/%s" % self._segment(user_id),
+            params={"$select": self.USER_SELECT}, expected=(404,),
+        )
+        if isinstance(user, dict) and user.get("id"):
+            _logger.info(
+                "[MICROSOFT][GUEST][FETCH] tenant_id=%s user_id=%s "
+                "user_type=%s external_state=%s account_enabled=%s",
+                self.tenant.id, user["id"], user.get("userType"),
+                user.get("externalUserState"), user.get("accountEnabled"),
+            )
+        else:
+            _logger.warning(
+                "[MICROSOFT][GUEST][NOT_FOUND] tenant_id=%s user_id=%s",
+                self.tenant.id, user_id,
+            )
+        return user
+
+    def _invitation_redirect(self):
+        base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url")
+        redirect = self.tenant.invite_redirect_url or (
+            base_url.rstrip("/") + "/web" if base_url else False
+        )
+        parsed = urlsplit(redirect or "")
+        if (parsed.scheme != "https" or not parsed.hostname or
+                parsed.username is not None or parsed.password is not None or
+                parsed.port not in (None, 443) or parsed.fragment):
+            raise UserError("Configure una URL HTTPS válida para redirigir al invitado.")
+        return redirect
 
     def invite_guest(self, email, display_name, send_message=True):
         email = self._email(email)
@@ -102,17 +136,66 @@ class DirectoryService:
         existing = self.find_user_by_email(email)
         if existing and existing.get("id"):
             return {"invitedUser": existing, "inviteRedeemUrl": None, "existingUser": True}
-        base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url")
-        redirect = self.tenant.invite_redirect_url or (base_url.rstrip("/") + "/web" if base_url else False)
-        if not redirect or not redirect.lower().startswith("https://"):
-            raise UserError("Configure una URL HTTPS válida para redirigir al invitado.")
         payload = {
             "invitedUserEmailAddress": email,
             "invitedUserDisplayName": str(display_name).strip(),
-            "inviteRedirectUrl": redirect,
+            "inviteRedirectUrl": self._invitation_redirect(),
             "sendInvitationMessage": bool(send_message),
         }
-        return self.client.request("POST", "/invitations", json=payload)
+        result = self.client.request("POST", "/invitations", json=payload)
+        if not isinstance(result, dict) or not (result.get("invitedUser") or {}).get("id"):
+            raise UserError("Microsoft no confirmó la creación de la invitación.")
+        _logger.info(
+            "[MICROSOFT][GUEST][INVITED] tenant_id=%s user_id=%s "
+            "status=%s microsoft_email=%s redeem_url_present=%s",
+            self.tenant.id, result["invitedUser"]["id"],
+            result.get("status"), bool(send_message), bool(result.get("inviteRedeemUrl")),
+        )
+        return result
+
+    def reset_guest_invitation(self, user_id, email, send_message=True):
+        """Reiniciar aceptación SOLO a petición expresa del administrador.
+
+        Reutiliza el identificador Microsoft y las asignaciones existentes.
+        No llamar desde un cron ni desde una simple consulta de estado.
+        """
+        existing = self.get_user(user_id)
+        if not isinstance(existing, dict) or not existing.get("id"):
+            raise UserError("No se encontró la identidad Microsoft para reenviar la invitación.")
+        if str(existing.get("userType") or "").lower() != "guest":
+            raise UserError("Solo pueden restablecerse invitaciones de usuarios Guest.")
+        if str(existing.get("externalUserState") or "").lower() != "pendingacceptance":
+            raise UserError("El invitado ya no está pendiente de aceptación.")
+        email = self._email(email)
+        addresses = {
+            str(value).lower() for value in (
+                [existing.get("mail")] + (existing.get("otherMails") or [])
+            ) if value
+        }
+        if email not in addresses:
+            raise UserError(
+                "El correo no coincide con la identidad invitada. "
+                "Revise el correo del usuario antes de restablecerla."
+            )
+        payload = {
+            "invitedUserEmailAddress": email,
+            "inviteRedirectUrl": self._invitation_redirect(),
+            "invitedUser": {"id": existing["id"]},
+            "resetRedemption": True,
+            "sendInvitationMessage": bool(send_message),
+        }
+        result = self.client.request("POST", "/invitations", json=payload)
+        if not isinstance(result, dict) or not (result.get("invitedUser") or {}).get("id"):
+            raise UserError("Microsoft no confirmó el restablecimiento de la invitación.")
+        if result["invitedUser"]["id"] != existing["id"]:
+            raise UserError("Microsoft devolvió una identidad diferente al restablecer la invitación.")
+        _logger.info(
+            "[MICROSOFT][GUEST][RESET] tenant_id=%s user_id=%s "
+            "microsoft_email=%s redeem_url_present=%s",
+            self.tenant.id, existing["id"], bool(send_message),
+            bool(result.get("inviteRedeemUrl")),
+        )
+        return result
 
     def create_group(self, group):
         group.ensure_one()

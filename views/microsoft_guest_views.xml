@@ -11,6 +11,7 @@
                 <field name="tenant_id"/>
                 <field name="state" widget="badge"/>
                 <field name="group_ids" widget="many2many_tags"/>
+                <field name="accepted_date" optional="show"/>
                 <field name="last_sync"/>
             </list>
         </field>
@@ -22,9 +23,10 @@
         <field name="arch" type="xml">
             <form string="Invitado Microsoft">
                 <header>
-                    <button name="action_invite" type="object" string="Registrar / invitar" class="btn-primary" invisible="state == 'accepted'"/>
-                    <button name="action_sync" type="object" string="Comprobar estado" class="btn-secondary" invisible="not entra_user_id"/>
-                    <button name="action_apply_groups" type="object" string="Aplicar grupos" class="btn-secondary" invisible="not entra_user_id"/>
+                    <button name="action_invite" type="object" string="Registrar / invitar" class="btn-primary" groups="odoo_onedrive_integration.group_microsoft_admin" invisible="state == 'accepted'"/>
+                    <button name="action_resend_invitation" type="object" string="Reenviar invitación" class="btn-secondary" groups="odoo_onedrive_integration.group_microsoft_admin" invisible="state != 'pending' or not entra_user_id" confirm="Se generará un nuevo enlace de aceptación y se enviará al correo del invitado. ¿Desea continuar?"/>
+                    <button name="action_sync" type="object" string="Comprobar estado" class="btn-secondary" groups="odoo_onedrive_integration.group_microsoft_admin" invisible="not entra_user_id"/>
+                    <button name="action_apply_groups" type="object" string="Aplicar grupos" class="btn-secondary" groups="odoo_onedrive_integration.group_microsoft_admin" invisible="not entra_user_id"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,pending,accepted,blocked,error"/>
                 </header>
                 <sheet>
