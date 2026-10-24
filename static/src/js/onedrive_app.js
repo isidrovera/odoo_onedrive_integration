@@ -1830,7 +1830,7 @@ export class OneDriveApp extends Component {
 
                 if (locationId !== this.state.locationId) break;
 
-                const relative = (file.webkitRelativePath || file.name).replace(/**\\\**/g, "/");
+                const relative = (file.webkitRelativePath || file.name).replace(/\\/g, "/");
 
                 const segments = relative.split("/").filter(Boolean);
 
