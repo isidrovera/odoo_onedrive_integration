@@ -1,4 +1,4 @@
-/* Microsoft 365 - Odoo 19 | CSS sin anidamiento SCSS */
+/* Microsoft 365 - OneDrive y SharePoint | Odoo 19 | SCSS compatible sin anidamientos */
 .o_onedrive_app {
   position: relative;
   height: 100%;
@@ -2010,3 +2010,14 @@ to {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Indicador de carpeta destino al arrastrar archivos desde el explorador */
+.o_onedrive_app .od_card.od_drop_target,
+.o_onedrive_app .od_list_row.od_drop_target {
+  outline: 2px solid #0078d4;
+  outline-offset: -2px;
+  background: #e9f4ff;
+  box-shadow: 0 0 0 3px rgba(0,120,212,.12);
+}
+.o_onedrive_app .od_card[draggable="true"] { cursor: grab; }
+.o_onedrive_app .od_card[draggable="true"]:active { cursor: grabbing; }

@@ -73,6 +73,7 @@ export class OneDriveApp extends Component {
             ctxMenu: { open: false, x: 0, y: 0, file: null },
 
             dragOver: false,
+            dropFolderId: null,
 
             detailFile: null,
 
@@ -112,6 +113,7 @@ export class OneDriveApp extends Component {
         this._requestSeq = 0;
 
         this._uploadAbort = null;
+        this._dragItems = null;
 
         // helpers expuestos al template
 
@@ -2132,12 +2134,68 @@ export class OneDriveApp extends Component {
 
     // =========================================================
 
+    // Movimiento interno: nunca tratar el arrastre de un driveItem como una subida.
+    onItemDragStart(file, ev) {
+        if (this.selectorMode || !this.canEdit() || !file?.id || !ev.dataTransfer) {
+            ev.preventDefault();
+            return;
+        }
+        const items = this.state.selected.has(file.id)
+            ? this.getSelectedItems()
+            : [file];
+        this._dragItems = items.map(f => ({ id: f.id, name: f.name, folder: !!f.folder }));
+        ev.dataTransfer.effectAllowed = "move";
+        ev.dataTransfer.setData("application/x-odoo-m365-items", String(this.state.locationId));
+        ev.dataTransfer.setData("text/plain", items.map(f => f.name).join(", "));
+    }
+
+    onItemDragEnd() {
+        this._dragItems = null;
+        this.state.dropFolderId = null;
+        this.state.dragOver = false;
+    }
+
+    onFolderDragOver(file, ev) {
+        if (!file?.folder || !this._dragItems?.length || !this.canEdit() || this.selectorMode) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.dataTransfer.dropEffect = "move";
+        this.state.dragOver = false;
+        this.state.dropFolderId = file.id;
+    }
+
+    onFolderDragLeave(file, ev) {
+        if (this.state.dropFolderId === file?.id && !ev.currentTarget.contains(ev.relatedTarget)) {
+            this.state.dropFolderId = null;
+        }
+    }
+
+    async onFolderDrop(file, ev) {
+        if (!file?.folder || !this._dragItems?.length || this.selectorMode || !this.canEdit()) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.state.dropFolderId = null;
+        this.state.dragOver = false;
+        const items = [...this._dragItems];
+        this._dragItems = null;
+        if (items.some(item => item.id === file.id)) {
+            this.notify("No se puede mover una carpeta dentro de sí misma.", "warning");
+            return;
+        }
+        // Aprovechar el diálogo de destino existente: confirmar evita movimientos accidentales.
+        await this.openMoveDialog("move", items);
+        if (this.state.moveDialog.open) {
+            await this.loadMoveFolders(file.id, [...this.state.path, { id: file.id, name: file.name }]);
+        }
+    }
+
     onDragOver(ev) {
 
         // En modo selector no permitimos subir archivos por drag&drop
 
         if (this.selectorMode || !this.canEdit()) return;
 
+        if (this._dragItems?.length) return;  // movimiento interno, no subida
         ev.preventDefault();
 
         if (ev.dataTransfer && ev.dataTransfer.types &&
@@ -2173,6 +2231,7 @@ export class OneDriveApp extends Component {
         ev.preventDefault();
 
         this.state.dragOver = false;
+        if (this._dragItems?.length) return; // No duplicar archivos internos
 
         const files = ev.dataTransfer && ev.dataTransfer.files;
 
