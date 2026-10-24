@@ -5,6 +5,8 @@ Todas las operaciones están autorizadas en el servidor sobre una ubicación
 concreta. Nunca se utilizan permisos de aplicación para omitir controles Odoo.
 """
 import json
+import io
+import zipfile
 import logging
 import hmac
 import hashlib
@@ -99,10 +101,32 @@ class MicrosoftDocumentsController(http.Controller):
             })
         return result
 
+    @staticmethod
+    def _with_odoo_creators(result, location):
+        """Añade autor Odoo comprobado por auditoría; nunca falsifica createdBy de Graph."""
+        items = result.get("value", []) if isinstance(result, dict) else []
+        ids = [item.get("id") for item in items if isinstance(item, dict) and item.get("id")]
+        if not ids:
+            return result
+        logs = request.env["microsoft.audit.log"].sudo().search([
+            ("location_id", "=", location.id),
+            ("item_id", "in", ids),
+            ("operation", "=", "upload"),
+            ("status", "=", "success"),
+        ], order="create_date asc, id asc")
+        creators = {}
+        for log in logs:
+            creators.setdefault(log.item_id, log.user_id.name)
+        for item in items:
+            if item.get("id") in creators:
+                item["createdByOdoo"] = creators[item["id"]]
+        return result
+
     @http.route("/microsoft/list", type="jsonrpc", auth="user")
     def list_files(self, parent_id=None, location_id=None):
         location, service = self._service("list", location_id)
         result = service.list_children(parent_id) if parent_id else service.list_root()
+        result = self._with_odoo_creators(result, location)
         self._audit("list", location, item_id=parent_id)
         return result
 
@@ -110,6 +134,7 @@ class MicrosoftDocumentsController(http.Controller):
     def search_files(self, query, location_id=None):
         location, service = self._service("search", location_id)
         result = service.search(query)
+        result = self._with_odoo_creators(result, location)
         self._audit("search", location, message=str(query or "")[:200])
         return result
 
@@ -453,6 +478,66 @@ class MicrosoftDocumentsController(http.Controller):
                 remote.close()
             _logger.exception("Microsoft download network error")
             return request.make_response("No se pudo descargar el documento.", status=502)
+
+    @http.route("/microsoft/download_zip", type="http", auth="user", methods=["GET"])
+    def download_zip(self, ids=None, location_id=None, **kwargs):
+        """ZIP de varios archivos; límite estricto para proteger el servidor.
+
+        No guarda documentos en ir.attachment. Los contenidos se consultan en
+        Microsoft, y se empaquetan únicamente para esta respuesta HTTP.
+        """
+        try:
+            location, service = self._service("download", location_id)
+            item_ids = [item.strip() for item in str(ids or "").split(",") if item.strip()]
+            if not 2 <= len(item_ids) <= 25 or len(set(item_ids)) != len(item_ids):
+                raise UserError("Seleccione entre 2 y 25 archivos diferentes.")
+            files = []
+            total = 0
+            maximum = 80 * 1024 * 1024
+            for item_id in item_ids:
+                url, item = service.get_download_url(item_id)
+                size = int(item.get("size") or 0)
+                if size < 0 or size > maximum or total + size > maximum:
+                    raise UserError("El ZIP supera 80 MB. Descargue los archivos en grupos más pequeños.")
+                total += size
+                files.append((url, item))
+            target = io.BytesIO()
+            with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=3) as archive:
+                used_names = set()
+                for url, item in files:
+                    remote = self._temporary_get(url, stream=True, timeout=120)
+                    try:
+                        if remote.status_code != 200:
+                            raise UserError("Microsoft rechazó la descarga de un archivo.")
+                        filename = service._filename(item.get("name") or "documento")
+                        root_name = filename
+                        count = 2
+                        while filename.casefold() in used_names:
+                            filename = f"{count}_{root_name}"
+                            count += 1
+                        used_names.add(filename.casefold())
+                        with archive.open(filename, "w") as dest:
+                            seen = 0
+                            for chunk in remote.iter_content(chunk_size=64 * 1024):
+                                if chunk:
+                                    seen += len(chunk)
+                                    if seen > maximum or target.tell() + seen > maximum * 2:
+                                        raise UserError("La descarga supera el límite permitido.")
+                                    dest.write(chunk)
+                    finally:
+                        remote.close()
+            self._audit("download", location, message=f"ZIP: {len(files)} archivos")
+            return request.make_response(target.getvalue(), headers=[
+                ("Content-Type", "application/zip"),
+                ("Content-Disposition", "attachment; filename=Documentos_Microsoft365.zip"),
+                ("Cache-Control", "no-store"),
+                ("X-Content-Type-Options", "nosniff"),
+            ])
+        except (UserError, AccessError) as error:
+            return request.make_response(str(error), status=403 if isinstance(error, AccessError) else 400)
+        except http_requests.RequestException:
+            _logger.exception("Fallo en descarga ZIP Microsoft 365")
+            return request.make_response("Fallo al obtener los documentos.", status=502)
 
     # Sesión temporal firmada: vinculada al usuario, ubicación, URL y tamaño.
     @staticmethod

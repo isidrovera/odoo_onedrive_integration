@@ -583,38 +583,44 @@ class DriveService:
 
 
 
+    def _destination_id(self, target_parent_id):
+        """Validar que el destino es una carpeta del mismo drive, incluida la raíz."""
+        if not target_parent_id:
+            root = self.client.request("GET", f"{self.drive_base}/root")
+            return self._segment(root["id"])
+        folder = self.client.request("GET", self._item(target_parent_id))
+        if folder.get("folder") is None:
+            raise UserError("El destino seleccionado no es una carpeta.")
+        return self._segment(folder["id"])
+
     def move_item(self, item_id, target_parent_id):
-
         self._check("move")
-
-        if str(item_id) == str(target_parent_id):
-
+        dest_id = self._destination_id(target_parent_id)
+        source = self.client.request("GET", self._item(item_id))
+        if str(source.get("id")) == str(dest_id):
             raise UserError("No puede mover una carpeta dentro de sí misma.")
-
+        # Microsoft Graph rechaza también ciclos en carpetas descendientes.
+        if str((source.get("parentReference") or {}).get("id")) == str(dest_id):
+            raise UserError("El elemento ya se encuentra en esa carpeta.")
         return self.client.request("PATCH", self._item(item_id), json={
-
-            "parentReference": {"id": str(target_parent_id)},
-
+            "parentReference": {"id": dest_id},
         })
 
-
-
     def copy_item(self, item_id, target_parent_id, new_name=None):
-
         self._check("copy")
-
-        payload = {"parentReference": {"id": str(target_parent_id)}}
-
-        self._segment(target_parent_id)
-
+        dest_id = self._destination_id(target_parent_id)
+        source = self.client.request("GET", self._item(item_id))
+        if str(source.get("id")) == str(dest_id):
+            raise UserError("No puede copiar una carpeta dentro de sí misma.")
+        parent_ref = {"id": dest_id}
+        if self.location.drive_id:
+            parent_ref["driveId"] = self.location.drive_id
+        payload = {"parentReference": parent_ref}
         if new_name:
-
             payload["name"] = self._filename(new_name)
-
-        # Graph devuelve habitualmente 202 (operación asíncrona).
-
+        # Microsoft acepta la copia como operación asíncrona (HTTP 202).
+        # La respuesta NO confirma que el elemento ya esté copiado.
         return self.client.request("POST", f"{self._item(item_id)}/copy", json=payload)
-
 
 
     def delete_item(self, item_id):

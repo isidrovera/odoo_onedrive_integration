@@ -10,8 +10,6 @@ import { useService } from "@web/core/utils/hooks";
 
 import { _t } from "@web/core/l10n/translation";
 
-
-
 import { FilePreviewDialog } from "./dialogs/file_preview_dialog";
 
 import { PromptDialog } from "./dialogs/prompt_dialog";
@@ -24,13 +22,9 @@ import { PropertiesDialog } from "./dialogs/properties_dialog";
 
 import { getFileIcon, formatBytes, formatDate } from "./utils/file_utils";
 
-
-
 export class OneDriveApp extends Component {
 
     static template = "odoo_onedrive_integration.OneDriveApp";
-
-
 
     setup() {
 
@@ -41,9 +35,8 @@ export class OneDriveApp extends Component {
         this.rootRef = useRef("root");
 
         this.fileInputRef = useRef("fileInput");
+
         this.folderInputRef = useRef("folderInput");
-
-
 
         this.state = useState({
 
@@ -106,20 +99,19 @@ export class OneDriveApp extends Component {
             uploading: false,
 
             uploadResults: [],
+
             createMenuOpen: false,
+            moveDialog: { open: false, action: "move", parentId: null, path: [], folders: [], busy: false, loading: false },
+
             creatingDocument: false,
 
         });
-
-
 
         this._searchDebounce = null;
 
         this._requestSeq = 0;
 
         this._uploadAbort = null;
-
-
 
         // helpers expuestos al template
 
@@ -129,16 +121,13 @@ export class OneDriveApp extends Component {
 
         this.formatDate = formatDate;
 
-
-
         // bound handlers para poder removerlos correctamente
 
         this._onDocClick = this.closeCtxMenu.bind(this);
+
         this._onCreateOutsideClick = this.onCreateOutsideClick.bind(this);
 
         this._onDocKey = this.onKeyDown.bind(this);
-
-
 
         // =========================================================
 
@@ -160,8 +149,6 @@ export class OneDriveApp extends Component {
 
         );
 
-
-
         // Cache de archivos seleccionados a través de carpetas
 
         // (id -> {id, name, size}) para que la selección persista
@@ -169,8 +156,6 @@ export class OneDriveApp extends Component {
         // al navegar dentro del selector.
 
         this._selectedCache = new Map();
-
-
 
         onWillStart(async () => {
 
@@ -180,11 +165,10 @@ export class OneDriveApp extends Component {
 
         });
 
-
-
         onMounted(() => {
 
             document.addEventListener("click", this._onDocClick);
+
             document.addEventListener("click", this._onCreateOutsideClick);
 
             document.addEventListener("keydown", this._onDocKey);
@@ -194,6 +178,7 @@ export class OneDriveApp extends Component {
         onWillUnmount(() => {
 
             document.removeEventListener("click", this._onDocClick);
+
             document.removeEventListener("click", this._onCreateOutsideClick);
 
             document.removeEventListener("keydown", this._onDocKey);
@@ -205,8 +190,6 @@ export class OneDriveApp extends Component {
         });
 
     }
-
-
 
     // =========================================================
 
@@ -258,8 +241,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     async onLocationChange(ev) {
 
         const id = Number(ev.target.value);
@@ -290,23 +271,17 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     canEdit() {
 
         return !!(this.state.currentLocation && this.state.currentLocation.can_edit);
 
     }
 
-
-
     canManage() {
 
         return !!(this.state.currentLocation && this.state.currentLocation.can_manage);
 
     }
-
-
 
     // =========================================================
 
@@ -374,8 +349,6 @@ export class OneDriveApp extends Component {
 
             this._rememberRecent(this.state.files);
 
-
-
             // Re-marcar como seleccionados los archivos que ya estaban
 
             // en el cache global del selector (si aplica).
@@ -418,15 +391,11 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     applyFilterAndSort() {
 
         try {
 
             let list = (this.state.files || []).filter(f => f && f.id);
-
-
 
             if (this.state.section === "favorites") {
 
@@ -452,8 +421,6 @@ export class OneDriveApp extends Component {
 
             }
 
-
-
             const dir = this.state.sortDir === "asc" ? 1 : -1;
 
             list.sort((a, b) => {
@@ -465,8 +432,6 @@ export class OneDriveApp extends Component {
                 const bf = !!(b && b.folder);
 
                 if (af !== bf) return af ? -1 : 1;
-
-
 
                 let av, bv;
 
@@ -512,8 +477,6 @@ export class OneDriveApp extends Component {
 
             });
 
-
-
             this.state.filteredFiles = list;
 
         } catch (e) {
@@ -525,8 +488,6 @@ export class OneDriveApp extends Component {
         }
 
     }
-
-
 
     setSort(field) {
 
@@ -546,11 +507,7 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     setView(v) { this.state.view = v; }
-
-
 
     // =========================================================
 
@@ -559,9 +516,13 @@ export class OneDriveApp extends Component {
     // =========================================================
 
     getThumbnailUrl(file, size = "medium") {
+
         if (!file?.id || file.folder || !this.state.locationId) return "";
+
         const safeSize = ["small", "medium", "large"].includes(size) ? size : "medium";
+
         return `/microsoft/thumbnail/${encodeURIComponent(String(file.id))}?location_id=${encodeURIComponent(String(this.state.locationId))}&size=${safeSize}`;
+
     }
 
     getStats() {
@@ -592,8 +553,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     getModifiedBy(file) {
 
         if (!file) return _t("Microsoft 365");
@@ -614,7 +573,16 @@ export class OneDriveApp extends Component {
 
     }
 
+    getCreatedBy(file) {
+        const identity = file?.createdBy || {};
+        return file?.createdByOdoo || identity.user?.displayName || identity.application?.displayName ||
+            identity.device?.displayName || "No identificado por Microsoft";
+    }
 
+    getCreatorInitials(file) {
+        const name = this.getCreatedBy(file).trim();
+        return name.split(/\s+/).slice(0, 2).map(s => s.charAt(0).toUpperCase()).join("") || "?";
+    }
 
     getModifierInitials(file) {
 
@@ -625,8 +593,6 @@ export class OneDriveApp extends Component {
         return name.split(/\s+/).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join("");
 
     }
-
-
 
     formatRelativeDate(value) {
 
@@ -656,8 +622,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     getCurrentPath() {
 
         const location = this.state.currentLocation?.name || _t("Ubicación");
@@ -667,8 +631,6 @@ export class OneDriveApp extends Component {
         return [location, ...folders].join(" / ");
 
     }
-
-
 
     selectForDetails(file, ev) {
 
@@ -684,15 +646,11 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     closeDetails() {
 
         this.state.detailFile = null;
 
     }
-
-
 
     // =========================================================
 
@@ -744,8 +702,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     /**
 
      * Abre el archivo en su app nativa de Microsoft (Office Online)
@@ -756,7 +712,7 @@ export class OneDriveApp extends Component {
 
     openExternal(file) {
 
-        if (file && file.webUrl && /^https:\/\//i.test(file.webUrl)) {
+        if (file && file.webUrl && /^https?:\/\//i.test(file.webUrl)) {
 
             window.open(file.webUrl, "_blank", "noopener");
 
@@ -767,8 +723,6 @@ export class OneDriveApp extends Component {
         }
 
     }
-
-
 
     async goRoot() {
 
@@ -787,8 +741,6 @@ export class OneDriveApp extends Component {
         await this.loadFiles(null);
 
     }
-
-
 
     async goTo(idx) {
 
@@ -810,8 +762,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     async goUp() {
 
         if (this.state.path.length === 0) return;
@@ -831,8 +781,6 @@ export class OneDriveApp extends Component {
         await this.loadFiles(last ? last.id : null);
 
     }
-
-
 
     // =========================================================
 
@@ -858,8 +806,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     async onSearchSubmit(ev) {
 
         if (ev.key !== "Enter") return;
@@ -881,8 +827,6 @@ export class OneDriveApp extends Component {
         await this._doGlobalSearch(q);
 
     }
-
-
 
     async _doGlobalSearch(q) {
 
@@ -911,8 +855,6 @@ export class OneDriveApp extends Component {
             this.state.files = raw.filter(f => f && f.id && f.name);
 
             this.applyFilterAndSort();
-
-
 
             // Re-marcar selección desde cache (modo selector)
 
@@ -954,8 +896,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     async clearSearch() {
 
         if (this._searchDebounce) {
@@ -974,8 +914,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     // =========================================================
 
     // SELECTION
@@ -991,8 +929,6 @@ export class OneDriveApp extends Component {
         // En modo selector NO se permite seleccionar carpetas
 
         if (this.selectorMode && file.folder) return;
-
-
 
         const sel = new Set(this.state.selected);
 
@@ -1032,15 +968,11 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     isSelected(file) {
 
         return file ? this.state.selected.has(file.id) : false;
 
     }
-
-
 
     selectAll() {
 
@@ -1100,8 +1032,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     /**
 
      * Notifica al diálogo padre (si estamos en modo selector) los
@@ -1121,8 +1051,6 @@ export class OneDriveApp extends Component {
         cb(Array.from(this._selectedCache.values()));
 
     }
-
-
 
     // =========================================================
 
@@ -1152,8 +1080,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     closeCtxMenu() {
 
         if (this.state.ctxMenu.open) {
@@ -1164,9 +1090,101 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     // =========================================================
+
+    // Mover/copiar por lotes dentro de la misma unidad SharePoint.
+    getSelectedItems() {
+        return (this.state.files || []).filter(f => this.state.selected.has(f.id));
+    }
+
+    clearSelectedItems() {
+        this.state.selected = new Set();
+        this.state.detailFile = null;
+    }
+
+    async openMoveDialog(action = "move", files = null) {
+        if (this.selectorMode || !this.canEdit()) return;
+        const selected = files || this.getSelectedItems();
+        if (!selected.length) return;
+        this._operationItems = selected.map(f => ({ id: f.id, name: f.name, folder: !!f.folder }));
+        this.closeCtxMenu();
+        this.state.moveDialog = {
+            open: true, action, parentId: null, path: [], folders: [],
+            busy: false, loading: true,
+        };
+        await this.loadMoveFolders(null);
+    }
+
+    closeMoveDialog() {
+        if (this.state.moveDialog.busy) return;
+        this.state.moveDialog.open = false;
+        this._operationItems = [];
+    }
+
+    async loadMoveFolders(parentId, path = []) {
+        const dlg = this.state.moveDialog;
+        dlg.loading = true;
+        try {
+            const response = await rpc("/microsoft/list", {
+                location_id: this.state.locationId, parent_id: parentId,
+            });
+            dlg.parentId = parentId;
+            dlg.path = path;
+            const blocked = new Set((this._operationItems || []).filter(f => f.folder).map(f => f.id));
+            dlg.folders = (response.value || []).filter(f => f.folder && !blocked.has(f.id));
+        } catch (err) {
+            this.notify(this.errorMessage(err), "danger");
+        } finally {
+            dlg.loading = false;
+        }
+    }
+
+    async executeMoveDialog() {
+        const dlg = this.state.moveDialog;
+        if (!dlg.open || dlg.busy || dlg.loading || !this.canEdit()) return;
+        const items = [...(this._operationItems || [])];
+        if (!items.length) return;
+        dlg.busy = true;
+        let completed = 0;
+        const failures = [];
+        const endpoint = dlg.action === "copy" ? "/microsoft/copy" : "/microsoft/move";
+        for (const file of items) {
+            try {
+                await rpc(endpoint, {
+                    item_id: file.id,
+                    target_parent_id: dlg.parentId,
+                    location_id: this.state.locationId,
+                });
+                completed++;
+            } catch (err) {
+                failures.push(file.name + ": " + this.errorMessage(err));
+            }
+        }
+        dlg.busy = false;
+        dlg.open = false;
+        this._operationItems = [];
+        this.clearSelectedItems();
+        await this.loadFiles(this.state.currentFolder);
+        if (completed) this.notify(`${completed} elemento(s) ${endpoint.endsWith("copy") ? "en proceso de copia" : "movido(s)"}`, "success");
+        if (failures.length) this.notify(`${failures.length} error(es): ${failures.slice(0, 2).join("; ")}`, "danger");
+    }
+
+    downloadSelected() {
+        if (this.selectorMode) return;
+        const files = this.getSelectedItems();
+        if (!files.length) return;
+        if (files.some(f => f.folder)) {
+            this.notify("Para descargar un ZIP, selecciona solamente archivos.", "warning");
+            return;
+        }
+        if (files.length === 1) return this.downloadItem(files[0]);
+        if (files.length > 25) {
+            this.notify("Puedes descargar hasta 25 archivos por ZIP.", "warning");
+            return;
+        }
+        const ids = files.map(f => encodeURIComponent(f.id)).join(",");
+        window.open(`/microsoft/download_zip?location_id=${encodeURIComponent(this.state.locationId)}&ids=${ids}`, "_blank", "noopener");
+    }
 
     // ACTIONS
 
@@ -1202,8 +1220,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     downloadItem(file) {
 
         if (!file) return;
@@ -1226,167 +1242,310 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     // =========================================================
+
     // CREAR O SUBIR: menú único y creación real en SharePoint
+
     // =========================================================
 
     toggleCreateMenu() {
+
         if (this.selectorMode || !this.canEdit() || this.state.uploading || this.state.creatingDocument) {
+
             return;
+
         }
+
         this.state.createMenuOpen = !this.state.createMenuOpen;
+
     }
 
     closeCreateMenu() {
+
         this.state.createMenuOpen = false;
+
     }
 
     onCreateOutsideClick(ev) {
+
         if (!this.state.createMenuOpen) return;
+
         const element = ev.target;
+
         if (!element?.closest?.(".od_create_dropdown")) this.closeCreateMenu();
+
     }
 
     createMenuUpload(kind) {
+
         this.closeCreateMenu();
+
         if (kind === "folder") this.triggerFolderUpload();
+
         else this.triggerUpload();
+
     }
 
     createMenuFolder() {
+
         this.closeCreateMenu();
+
         this.createFolder();
+
     }
 
     /**
+
      * Tipos admitidos por DriveService.DOCUMENT_TYPES. El servidor valida
+
      * de nuevo tipo, nombre, ubicación y permiso de escritura.
+
      */
+
     createNewDocument(docType) {
+
         this.closeCreateMenu();
+
         if (this.selectorMode || !this.canEdit() || this.state.creatingDocument) return;
+
         const types = {
+
             word: ["Documento de Word", "Documento", "bi-file-earmark-word"],
+
             excel: ["Libro de Excel", "Libro", "bi-file-earmark-excel"],
+
             powerpoint: ["Presentación de PowerPoint", "Presentación", "bi-file-earmark-ppt"],
+
             text: ["Documento de texto", "Documento", "bi-file-earmark-text"],
+
             markdown: ["Documento Markdown", "Documento", "bi-markdown"],
+
             csv: ["Archivo CSV", "Datos", "bi-filetype-csv"],
+
             html: ["Documento HTML", "Documento", "bi-filetype-html"],
+
             json: ["Documento JSON", "Datos", "bi-filetype-json"],
+
         };
+
         const info = types[docType];
+
         if (!info) {
+
             this.notify(_t("Este formato no está disponible"), "warning");
+
             return;
+
         }
+
         const locationId = this.state.locationId;
+
         const parentId = this.state.currentFolder;
+
         if (!locationId) return;
+
         this.dialog.add(PromptDialog, {
+
             title: _t("Crear %s", info[0]),
+
             label: _t("Nombre del documento"),
+
             placeholder: info[1],
+
             icon: info[2],
+
             confirmLabel: _t("Crear"),
+
             onConfirm: async (name) => {
+
                 if (!name || !String(name).trim()) {
+
                     this.notify(_t("Escribe un nombre para el documento"), "warning");
+
                     return;
+
                 }
+
                 if (this.state.creatingDocument) return;
+
                 this.state.creatingDocument = true;
+
                 try {
+
                     const item = await rpc("/microsoft/create_document", {
+
                         name: String(name).trim(),
+
                         doc_type: docType,
+
                         parent_id: parentId,
+
                         location_id: locationId,
+
                         content: "",
+
                     });
+
                     console.info("[MICROSOFT][CREATE_DOCUMENT][SUCCESS]", {
+
                         type: docType, itemId: item?.id, locationId,
+
                     });
+
                     this.notify(_t("Documento creado: %s", item?.name || name), "success");
+
                     if (this.state.locationId === locationId && this.state.currentFolder === parentId) {
+
                         await this.loadFiles(parentId);
+
                     }
+
                     // Abrir únicamente el vínculo web devuelto por Graph.
-                    if (item?.webUrl && /^https:\/\//i.test(item.webUrl)) {
+
+                    if (item?.webUrl && /^https?:\/\//i.test(item.webUrl)) {
+
                         window.open(item.webUrl, "_blank", "noopener,noreferrer");
+
                     }
+
                 } catch (error) {
+
                     console.error("[MICROSOFT][CREATE_DOCUMENT][ERROR]", error);
+
                     this.notify(this.errorMessage(error), "danger");
+
                 } finally {
+
                     this.state.creatingDocument = false;
+
                 }
+
             },
+
         });
+
     }
 
     /** Crea un fichero .url, sin presentarlo como vínculo nativo de SharePoint. */
+
     createNewLink() {
+
         this.closeCreateMenu();
+
         if (this.selectorMode || !this.canEdit() || this.state.creatingDocument) return;
+
         const locationId = this.state.locationId;
+
         const parentId = this.state.currentFolder;
+
         this.dialog.add(PromptDialog, {
+
             title: _t("Nuevo vínculo"),
+
             label: _t("Nombre del vínculo"),
+
             placeholder: _t("Enlace de referencia"),
+
             icon: "bi-link-45deg",
+
             confirmLabel: _t("Continuar"),
+
             onConfirm: (name) => {
+
                 if (!name || !String(name).trim()) {
+
                     this.notify(_t("Escribe un nombre para el vínculo"), "warning");
+
                     return;
+
                 }
+
                 this.dialog.add(PromptDialog, {
+
                     title: _t("Dirección del vínculo"),
+
                     label: _t("URL HTTPS"),
-                    placeholder: "https://",
+
+                    placeholder: "https\://",
+
                     icon: "bi-link-45deg",
+
                     confirmLabel: _t("Crear vínculo"),
+
                     onConfirm: async (targetUrl) => {
+
                         let address;
+
                         try {
+
                             address = new URL(String(targetUrl || "").trim());
+
                             if (address.protocol !== "https:" || address.username || address.password) {
+
                                 throw new Error("invalid_url");
+
                             }
+
                         } catch (_error) {
+
                             this.notify(_t("Indica una dirección HTTPS válida"), "warning");
+
                             return;
+
                         }
+
                         if (this.state.creatingDocument) return;
+
                         this.state.creatingDocument = true;
+
                         try {
+
                             const item = await rpc("/microsoft/create_link", {
+
                                 name: String(name).trim(),
+
                                 target_url: address.toString(),
+
                                 parent_id: parentId,
+
                                 location_id: locationId,
+
                             });
+
                             console.info("[MICROSOFT][CREATE_LINK][SUCCESS]", {
+
                                 itemId: item?.id, locationId,
+
                             });
+
                             this.notify(_t("Vínculo creado: %s", item?.name || name), "success");
+
                             if (this.state.locationId === locationId && this.state.currentFolder === parentId) {
+
                                 await this.loadFiles(parentId);
+
                             }
+
                         } catch (error) {
+
                             console.error("[MICROSOFT][CREATE_LINK][ERROR]", error);
+
                             this.notify(this.errorMessage(error), "danger");
+
                         } finally {
+
                             this.state.creatingDocument = false;
+
                         }
+
                     },
+
                 });
+
             },
+
         });
+
     }
 
     async createFolder() {
@@ -1437,8 +1596,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     renameItem(file) {
 
         if (!file || !this.canEdit() || this.selectorMode) return;
@@ -1487,8 +1644,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     deleteItem(file) {
 
         if (!file || !this.canManage() || this.selectorMode) return;
@@ -1536,8 +1691,6 @@ export class OneDriveApp extends Component {
         });
 
     }
-
-
 
     deleteSelected() {
 
@@ -1603,8 +1756,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     shareItem(file) {
 
         if (!file || !this.canManage() || this.selectorMode) return;
@@ -1619,8 +1770,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     showProperties(file) {
 
         if (!file) return;
@@ -1629,8 +1778,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     // =========================================================
 
     // UPLOAD
@@ -1638,178 +1785,343 @@ export class OneDriveApp extends Component {
     // =========================================================
 
     triggerUpload() {
+
         if (this.selectorMode || !this.canEdit() || this.state.uploading) return;
+
         this.fileInputRef.el?.click();
+
     }
 
     triggerFolderUpload() {
+
         if (this.selectorMode || !this.canEdit() || this.state.uploading) return;
+
         this.folderInputRef.el?.click();
+
     }
 
     async uploadFile(ev) {
+
         if (this.selectorMode || !this.canEdit() || this.state.uploading) return;
+
         const files = Array.from(ev?.target?.files || ev || []);
+
         if (!files.length) return;
+
         const locationId = this.state.locationId;
+
         const parentId = this.state.currentFolder;
+
         this.state.uploading = true;
+
         this._uploadCancelled = false;
+
         this.state.uploadResults = [];
+
         const folderCache = new Map();
+
         folderCache.set("", parentId);
+
         try {
+
             for (const file of files) {
+
                 if (this._uploadCancelled) break;
+
                 if (locationId !== this.state.locationId) break;
-                const relative = (file.webkitRelativePath || file.name).replace(/\\/g, "/");
+
+                const relative = (file.webkitRelativePath || file.name).replace(/**\\\**/g, "/");
+
                 const segments = relative.split("/").filter(Boolean);
+
                 if (!segments.length || segments.some(seg => seg === "." || seg === "..")) continue;
+
                 let folderId = parentId;
+
                 let path = "";
+
                 let failed = null;
+
                 for (const segment of segments.slice(0, -1)) {
+
                     path = path ? `${path}/${segment}` : segment;
+
                     if (!folderCache.has(path)) {
+
                         try {
+
                             const folder = await rpc("/microsoft/ensure_folder", {
+
                                 name: segment, parent_id: folderId, location_id: locationId,
+
                             });
+
                             folderCache.set(path, folder.id);
+
                         } catch (error) {
+
                             failed = this.errorMessage(error);
+
                             break;
+
                         }
+
                     }
+
                     folderId = folderCache.get(path);
+
                 }
+
                 const result = failed
+
                     ? {ok: false, error: failed}
+
                     : await this._uploadOne(file, locationId, folderId);
+
                 this.state.uploadResults.push({name: relative, ok: result.ok, error: result.error || null});
+
             }
+
         } finally {
+
             this.state.uploading = false;
+
             this.state.uploadProgress = null;
+
             this._uploadAbort = null;
+
             if (this.fileInputRef.el) this.fileInputRef.el.value = "";
+
             if (this.folderInputRef.el) this.folderInputRef.el.value = "";
+
             if (locationId === this.state.locationId && parentId === this.state.currentFolder) {
+
                 await this.loadFiles(parentId);
+
             }
+
             const failed = this.state.uploadResults.filter(r => !r.ok);
+
             if (failed.length) {
+
                 this.notify(_t("Fallaron %s de %s archivos. Primer error: %s", failed.length,
+
                     this.state.uploadResults.length, failed[0].error || "Desconocido"), "warning");
+
             }
+
         }
+
     }
 
     async _uploadOne(file, locationId = this.state.locationId, parentId = this.state.currentFolder) {
+
         // Cada petición al servidor transporta como máximo 5 MiB, no el archivo completo.
+
         const chunkSize = 5 * 1024 * 1024;
+
         this.state.uploadProgress = {name: file.name, percent: 0};
+
         try {
+
             const session = await rpc("/microsoft/upload_session", {
+
                 name: file.name, size: file.size, parent_id: parentId, location_id: locationId,
+
             });
+
             let offset = 0;
+
             let lastItem = null;
+
             while (offset < file.size) {
+
                 if (this._uploadCancelled) throw new Error("Carga cancelada");
+
                 const end = Math.min(offset + chunkSize, file.size);
+
                 const blob = file.slice(offset, end);
+
                 let successful = false;
+
                 for (let attempt = 0; attempt < 4 && !successful; attempt++) {
+
                     try {
+
                         const result = await this._sendUploadChunk(blob, session, offset, end, file.size, locationId);
+
                         if (result.item?.id) {
+
                             lastItem = result.item;
+
                             offset = file.size;
+
                         } else {
+
                             const next = Number(result.next_offset);
+
                             if (!Number.isSafeInteger(next) || next <= offset || next > file.size) {
+
                                 throw new Error("Microsoft devolvió una posición de subida incorrecta.");
+
                             }
+
                             offset = next;
+
                         }
+
                         successful = true;
+
                     } catch (error) {
+
                         if (error?.name === "AbortError" || error?.message === "Carga cancelada") throw error;
+
                         // Consultar la posición real evita repetir fragmentos ya aceptados.
+
                         try {
+
                             const status = await rpc("/microsoft/upload_status", {
+
                                 upload_url: session.upload_url, proof: session.proof, location_id: locationId,
+
                             });
+
                             if (status.item?.id) {
+
                                 lastItem = status.item;
+
                                 offset = file.size;
+
                                 successful = true;
+
                                 break;
+
                             }
+
                             const next = Number(status.next_offset);
+
                             if (Number.isSafeInteger(next) && next > offset) {
+
                                 offset = next;
+
                                 successful = true;
+
                                 break;
+
                             }
+
                         } catch (_statusError) { /* El reintento mostrará el error original. */ }
+
                         if (attempt === 3) throw error;
+
                         await new Promise(resolve => setTimeout(resolve, 700 * (attempt + 1)));
+
                     }
+
                 }
+
                 this.state.uploadProgress = {
+
                     name: file.name, percent: Math.min(99, Math.floor(offset * 100 / file.size)),
+
                 };
+
             }
+
             if (!lastItem?.id) {
+
                 // Microsoft puede confirmar el último chunk sin retornar item en estado intermedio.
+
                 const result = await rpc("/microsoft/upload_complete", {
+
                     upload_url: session.upload_url, proof: session.proof, location_id: locationId,
+
                 });
+
                 lastItem = result.item;
+
             }
+
             if (!lastItem?.id) throw new Error("No se confirmó la subida del archivo.");
+
             this.state.uploadProgress = {name: file.name, percent: 100};
+
             this.notify(_t("Subido: %s", file.name), "success");
+
             return {ok: true};
+
         } catch (error) {
+
             const message = this.errorMessage(error);
+
             this.notify(_t("Error subiendo: %s", file.name), "danger");
+
             return {ok: false, error: message};
+
         } finally {
+
             this.state.uploadProgress = null;
+
             this._uploadAbort = null;
+
         }
+
     }
 
     _sendUploadChunk(blob, session, start, end, total, locationId) {
+
         return new Promise((resolve, reject) => {
+
             const xhr = new XMLHttpRequest();
+
             this._uploadAbort = xhr;
+
             xhr.open("POST", "/microsoft/upload_chunk");
+
             const data = new FormData();
+
             data.append("chunk", blob, "fragment.bin");
+
             data.append("upload_url", session.upload_url);
+
             data.append("proof", session.proof);
+
             data.append("location_id", String(locationId));
+
             data.append("start", String(start));
+
             data.append("end", String(end));
+
             data.append("total", String(total));
+
             if (typeof odoo !== "undefined" && odoo.csrf_token) data.append("csrf_token", odoo.csrf_token);
+
             xhr.timeout = 180000;
+
             xhr.onload = () => {
+
                 let response;
+
                 try { response = JSON.parse(xhr.responseText || "{}"); }
+
                 catch (_error) { return reject(new Error(`Respuesta inválida (HTTP ${xhr.status})`)); }
+
                 if (xhr.status >= 200 && xhr.status < 300 && response.status === "ok") resolve(response);
+
                 else reject(new Error(response.message || `HTTP ${xhr.status}`));
+
             };
+
             xhr.onerror = () => reject(new Error("Fallo de red durante la subida"));
+
             xhr.onabort = () => reject(new Error("Carga cancelada"));
+
             xhr.ontimeout = () => reject(new Error("Tiempo de espera agotado"));
+
             xhr.send(data);
+
         });
+
     }
 
     cancelUpload() { this._uploadCancelled = true; this._uploadAbort?.abort(); }
@@ -1838,8 +2150,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     onDragLeave(ev) {
 
         if (this.selectorMode || !this.canEdit()) return;
@@ -1856,8 +2166,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     async onDrop(ev) {
 
         if (this.selectorMode || !this.canEdit()) return;
@@ -1872,8 +2180,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     // =========================================================
 
     // KEYBOARD
@@ -1885,6 +2191,7 @@ export class OneDriveApp extends Component {
         if (ev.key === "Escape") {
 
             this.closeCreateMenu();
+
             this.state.selected = new Set();
 
             if (this.selectorMode) {
@@ -1915,8 +2222,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     // =========================================================
 
     // SECCIONES, FAVORITOS Y ACTIVIDAD
@@ -1941,19 +2246,13 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     _favoriteKey(file) {
 
         return `${this.state.locationId}:${file?.id || ""}`;
 
     }
 
-
-
     isFavorite(file) { return !!file && this.state.favorites.has(this._favoriteKey(file)); }
-
-
 
     toggleFavorite(file, ev) {
 
@@ -1972,8 +2271,6 @@ export class OneDriveApp extends Component {
         this.applyFilterAndSort();
 
     }
-
-
 
     _rememberRecent(files) {
 
@@ -1996,8 +2293,6 @@ export class OneDriveApp extends Component {
             .slice(0, 100);
 
     }
-
-
 
     async loadVersions(file) {
 
@@ -2032,8 +2327,6 @@ export class OneDriveApp extends Component {
         }
 
     }
-
-
 
     restoreVersion(file, version) {
 
@@ -2071,8 +2364,6 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     async showActivity(file) {
 
         // La actividad documental requiere una ruta autorizada de lectura de auditoría.
@@ -2087,15 +2378,11 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     errorMessage(e) {
 
         return e?.data?.message || e?.message || _t("Ocurrió un error inesperado");
 
     }
-
-
 
     // =========================================================
 
@@ -2109,15 +2396,11 @@ export class OneDriveApp extends Component {
 
     }
 
-
-
     refresh() {
 
         this._refresh();
 
     }
-
-
 
     /** Refresca según el modo actual: búsqueda o navegación normal */
 
@@ -2136,7 +2419,5 @@ export class OneDriveApp extends Component {
     }
 
 }
-
-
 
 registry.category("actions").add("onedrive_app", OneDriveApp);

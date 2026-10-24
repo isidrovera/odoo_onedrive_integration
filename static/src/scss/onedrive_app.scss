@@ -4,8 +4,6 @@
 
    ============================================================ */
 
-
-
 /* Contenedor raíz */
 
 .o_onedrive_app {
@@ -31,8 +29,6 @@
     font-size: 14px;
 
 }
-
-
 
 /* ============================================================
 
@@ -106,8 +102,6 @@
 
 }
 
-
-
 /* SEARCH BOX */
 
 .o_onedrive_app .od_searchbox {
@@ -159,8 +153,6 @@
     min-width: 0;
 
 }
-
-
 
 /* ============================================================
 
@@ -226,8 +218,6 @@
 
 }
 
-
-
 /* VIEW SWITCH */
 
 .o_onedrive_app .od_viewswitch {
@@ -267,8 +257,6 @@
     box-shadow: 0 1px 2px rgba(0,0,0,.06);
 
 }
-
-
 
 /* ============================================================
 
@@ -336,8 +324,6 @@
 
 }
 
-
-
 /* ============================================================
 
    UPLOAD PROGRESS
@@ -392,8 +378,6 @@
 
 }
 
-
-
 /* ============================================================
 
    DROP OVERLAY
@@ -433,8 +417,6 @@
 .o_onedrive_app .od_dropmsg i { font-size: 64px; }
 
 .o_onedrive_app .od_dropmsg h2 { margin: 8px 0 0; }
-
-
 
 /* ============================================================
 
@@ -484,8 +466,6 @@
 
 .o_onedrive_app .od_empty p { margin: 0; text-align: center; }
 
-
-
 /* SPINNER */
 
 .o_onedrive_app .od_spinner {
@@ -505,8 +485,6 @@
 }
 
 @keyframes od_spin { to { transform: rotate(360deg); } }
-
-
 
 /* ============================================================
 
@@ -551,8 +529,6 @@
     align-content: start;
 
 }
-
-
 
 /* CARD — altura mínima garantizada */
 
@@ -614,8 +590,6 @@
 
 }
 
-
-
 .o_onedrive_app .od_card_check {
 
     position: absolute;
@@ -651,8 +625,6 @@
 }
 
 .o_onedrive_app .od_card_check i { font-size: 13px; }
-
-
 
 .o_onedrive_app .od_card_thumb {
 
@@ -701,8 +673,6 @@
 }
 
 .o_onedrive_app .od_card_icon i { font-size: inherit; line-height: 1; }
-
-
 
 .o_onedrive_app .od_card_body {
 
@@ -755,8 +725,6 @@
     text-overflow: ellipsis;
 
 }
-
-
 
 .o_onedrive_app .od_card_actions {
 
@@ -815,8 +783,6 @@
     color: #0078d4;
 
 }
-
-
 
 /* ============================================================
 
@@ -896,8 +862,6 @@
 
 .o_onedrive_app .od_list_header .sortable:hover { color: #0078d4; }
 
-
-
 .o_onedrive_app .od_list_row {
 
     height: 48px;
@@ -913,8 +877,6 @@
 .o_onedrive_app .od_list_row:hover { background: #f8fafc; }
 
 .o_onedrive_app .od_list_row.selected { background: rgba(0,120,212,.08); }
-
-
 
 .o_onedrive_app .od_col_check {
 
@@ -1024,8 +986,6 @@
 
 }
 
-
-
 /* ============================================================
 
    CONTEXT MENU
@@ -1116,8 +1076,6 @@
 
 }
 
-
-
 /* ============================================================
 
    DIALOGS — generic
@@ -1207,8 +1165,6 @@
     letter-spacing: .03em;
 
 }
-
-
 
 /* ============================================================
 
@@ -1324,8 +1280,6 @@
 
 }
 
-
-
 /* ============================================================
 
    SHARE DIALOG
@@ -1400,8 +1354,6 @@
 
 .od_radio span i { color: #64748b; }
 
-
-
 .od_link_box {
 
     display: flex;
@@ -1441,8 +1393,6 @@
     min-width: 0;
 
 }
-
-
 
 /* ============================================================
 
@@ -1532,15 +1482,11 @@
 
 .od_props_table a:hover { text-decoration: underline; }
 
-
-
 /* ============================================================
 
    RESPONSIVE — múltiples breakpoints
 
    ============================================================ */
-
-
 
 /* Pantallas grandes (>= 1600px): tarjetas un poco más amplias */
 
@@ -1556,11 +1502,7 @@
 
 }
 
-
-
 /* Laptops medianas (1200px–1599px): default ya cubre */
-
-
 
 /* Tablets / laptops pequeñas (768px–1199px) */
 
@@ -1596,8 +1538,6 @@
 
 }
 
-
-
 /* Móviles / pantallas estrechas (<= 768px) */
 
 @media (max-width: 768px) {
@@ -1609,8 +1549,6 @@
     .o_onedrive_app .od_toolbar { padding: 8px 12px; }
 
     .o_onedrive_app .od_breadcrumb { padding: 8px 12px; }
-
-
 
     .o_onedrive_app .od_grid {
 
@@ -1642,8 +1580,6 @@
 
     .o_onedrive_app .od_card_icon { font-size: 38px; }
 
-
-
     .o_onedrive_app .od_list_header,
 
     .o_onedrive_app .od_list_row {
@@ -1659,8 +1595,6 @@
     .o_onedrive_app .od_col_actions { display: none; }
 
 }
-
-
 
 /* Móviles muy pequeños (<= 480px) */
 
@@ -1700,15 +1634,11 @@
 
 }
 
-
-
 /* ============================================================
 
    MICROSOFT 365 DOCUMENTS — INTERFAZ MODERNA 2026
 
    ============================================================ */
-
-
 
 .o_onedrive_app {
 
@@ -1741,8 +1671,6 @@
     font-family: Inter, "Segoe UI", Arial, sans-serif;
 
 }
-
-
 
 /* Sidebar */
 
@@ -1932,8 +1860,6 @@
 
 }
 
-
-
 /* Workspace */
 
 .o_onedrive_app .od_workspace {
@@ -2096,8 +2022,6 @@
 
 .o_onedrive_app .od_icon_button:hover { color: var(--od-primary); border-color: #a8c9e6; background: #f5faff; }
 
-
-
 /* Command bar */
 
 .o_onedrive_app .od_commandbar {
@@ -2186,8 +2110,6 @@
 
 .o_onedrive_app .od_viewswitch { border: 1px solid #dfe6ef; background: #edf2f7; }
 
-
-
 /* Stats */
 
 .o_onedrive_app .od_stats {
@@ -2259,8 +2181,6 @@
 .o_onedrive_app .od_stat_card.violet .od_stat_icon { color: #6546a8; background: #f0ebfb; }
 
 .o_onedrive_app .od_stat_card.green .od_stat_icon { color: #13875d; background: #e5f7ef; }
-
-
 
 /* Breadcrumb and content */
 
@@ -2338,8 +2258,6 @@
 
 }
 
-
-
 /* Modern list */
 
 .o_onedrive_app .od_list { border-radius: 0; }
@@ -2414,8 +2332,6 @@
 
 .o_onedrive_app .od_listname { color: #202b3d; font-weight: 600; }
 
-
-
 /* Modern grid */
 
 .o_onedrive_app .od_grid { padding: 16px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
@@ -2429,8 +2345,6 @@
 .o_onedrive_app .od_card_author { display: flex; align-items: center; gap: 7px; margin-top: 8px; color: #66748a; font-size: 10px; overflow: hidden; white-space: nowrap; }
 
 .o_onedrive_app .od_card_author .od_avatar { width: 21px; height: 21px; font-size: 7px; }
-
-
 
 /* Details */
 
@@ -2506,8 +2420,6 @@
 
 .o_onedrive_app .od_details_actions .btn { min-height: 38px; border-radius: 8px; font-size: 11px; }
 
-
-
 /* Empty and loading inside workspace */
 
 .o_onedrive_app .od_workspace > .od_loading,
@@ -2515,8 +2427,6 @@
 .o_onedrive_app .od_workspace > .od_empty { margin: 0 24px 20px; border: 1px solid var(--od-border); border-radius: 12px; background: #fff; }
 
 .o_onedrive_app .od_dropoverlay { left: 232px; }
-
-
 
 /* Responsive */
 
@@ -2639,210 +2549,391 @@
 }
 
 /* ============================================================
+
    DISEÑO C: exploración prioritaria, estadísticas compactas
+
    ============================================================ */
+
 .o_onedrive_app .od_modern_header { padding: 12px 18px 7px; gap: 12px; }
+
 .o_onedrive_app .od_title_block h1 { font-size: 24px; }
+
 .o_onedrive_app .od_header_path { margin-top: 1px; }
+
 .o_onedrive_app .od_commandbar { padding: 5px 18px 9px; gap: 8px; }
+
 .o_onedrive_app .od_stats { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 8px; }
+
 .o_onedrive_app .od_stat_card { flex: 0 1 auto; min-width: 112px; min-height: 44px; padding: 6px 9px; gap: 7px; border-radius: 8px; }
+
 .o_onedrive_app .od_stat_card .od_stat_icon { width: 28px; height: 28px; font-size: 14px; }
+
 .o_onedrive_app .od_stat_card strong { font-size: 13px; line-height: 1.1; }
+
 .o_onedrive_app .od_stat_card small { font-size: 10px; }
+
 .o_onedrive_app .od_stat_card span:not(.od_stat_icon) { display: none; }
+
 .o_onedrive_app .od_breadcrumb { padding: 6px 16px; }
+
 .o_onedrive_app .od_content_shell { margin-top: 2px; }
+
 .o_onedrive_app .od_grid { grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 12px; padding: 12px; }
+
 .o_onedrive_app .od_card { height: 244px; min-height: 244px; border-radius: 12px; }
+
 .o_onedrive_app .od_card_thumb { flex: 0 0 160px; height: 160px; min-height: 160px; }
+
 .o_onedrive_app .od_card_thumb img { width: 100%; height: 100%; object-fit: contain; background: #f1f5f9; }
+
 .o_onedrive_app .od_card_icon { width: 100%; height: 100%; }
+
 .o_onedrive_app .od_card_body { justify-content: flex-start; padding: 9px 11px; }
+
 .o_onedrive_app .od_details_preview img { max-width: 100%; max-height: 200px; object-fit: contain; }
+
 @media (max-width: 900px) {
+
     .o_onedrive_app .od_modern_header { flex-wrap: wrap; }
+
     .o_onedrive_app .od_stats { flex-wrap: wrap; }
+
     .o_onedrive_app .od_grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+
 }
 
 /* ============================================================
+
    ODOO 19 | MENÚ ÚNICO «CREAR O SUBIR»
+
    Compatible con el XML y JS de la fase de creación documental.
+
    Las reglas se mantienen bajo .o_onedrive_app para evitar
+
    afectar otros componentes del backend.
+
    ============================================================ */
+
 .o_onedrive_app {
+
     .od_toolbar {
+
         position: relative;
+
         z-index: 40;
+
         overflow: visible;
+
     }
 
     .od_toolbar_actions {
+
         overflow: visible;
+
     }
 
     .od_create_dropdown {
+
         position: relative;
+
         display: inline-flex;
+
         align-items: stretch;
+
         flex: 0 0 auto;
+
         isolation: isolate;
 
         &.is-open {
+
             z-index: 110;
+
         }
+
     }
 
     .od_create_trigger {
+
         display: inline-flex;
+
         justify-content: center;
+
         align-items: center;
+
         gap: 9px;
+
         min-height: 38px;
+
         padding: 8px 14px;
+
         border: 1px solid #0067b8;
+
         border-radius: 9px;
+
         background: #0078d4;
+
         color: #fff;
+
         font-weight: 600;
+
         font-size: 13px;
+
         line-height: 1.2;
+
         box-shadow: 0 2px 5px rgba(0, 103, 184, .15);
+
         transition: background-color .15s ease, box-shadow .15s ease;
+
         white-space: nowrap;
 
         .bi-plus-lg { font-size: 16px; }
+
         .bi-chevron-down,
+
         .bi-chevron-up { font-size: 11px; margin-left: 2px; opacity: .88; }
 
         &:hover,
+
         &:focus-visible,
+
         &:active {
+
             color: #fff;
+
             background: #005ea6;
+
             border-color: #005ea6;
+
         }
 
         &:focus-visible {
+
             outline: 3px solid rgba(0, 120, 212, .28);
+
             outline-offset: 2px;
+
         }
 
         &:disabled {
+
             opacity: .55;
+
             cursor: not-allowed;
+
             box-shadow: none;
+
         }
+
     }
 
     .od_create_menu {
+
         position: absolute;
+
         top: calc(100% + 7px);
+
         left: 0;
+
         z-index: 120;
+
         width: 280px;
+
         max-width: calc(100vw - 32px);
+
         max-height: 580px;
+
         max-height: 72vh;
+
         overflow-x: hidden;
+
         overflow-y: auto;
+
         overscroll-behavior: contain;
+
         padding: 7px;
+
         border: 1px solid #dbe3ee;
+
         border-radius: 12px;
+
         background: #fff;
+
         box-shadow: 0 14px 38px rgba(15, 23, 42, .19),
+
                     0 2px 7px rgba(15, 23, 42, .08);
+
         scrollbar-width: thin;
+
         scrollbar-color: #cbd5e1 transparent;
+
         animation: od-create-menu-appear .14s ease-out;
+
     }
 
     .od_create_menu_group {
+
         padding: 8px 10px 5px;
+
         color: #64748b;
+
         font-size: 10px;
+
         font-weight: 750;
+
         text-transform: uppercase;
+
         letter-spacing: .08em;
+
         user-select: none;
+
     }
 
     .od_create_menu_item {
+
         display: flex;
+
         align-items: center;
+
         gap: 12px;
+
         width: 100%;
+
         min-height: 39px;
+
         padding: 8px 10px;
+
         border: 0;
+
         border-radius: 7px;
+
         background: transparent;
+
         color: #1e293b;
+
         font-size: 13px;
+
         font-weight: 500;
+
         line-height: 1.35;
+
         text-align: left;
+
         cursor: pointer;
+
         transition: background-color .12s ease;
 
         .bi {
+
             flex: 0 0 20px;
+
             width: 20px;
+
             font-size: 19px;
+
             line-height: 1;
+
             text-align: center;
+
             color: #64748b;
+
         }
 
         span { flex: 1 1 auto; }
 
         .od_create_icon_folder { color: #d69f24; }
+
         .od_create_icon_word { color: #185abd; }
+
         .od_create_icon_excel { color: #107c41; }
+
         .od_create_icon_powerpoint { color: #c43e1c; }
 
         &:hover { background: #f1f7fd; color: #075da1; }
+
         &:active { background: #e4f1fc; }
+
         &:focus-visible {
+
             outline: 2px solid #0078d4;
+
             outline-offset: -2px;
+
             background: #eff6ff;
+
         }
+
         &:disabled { opacity: .45; cursor: not-allowed; }
+
     }
 
     .od_create_menu_separator {
+
         height: 1px;
+
         margin: 7px 6px;
+
         background: #e8eef5;
+
     }
+
 }
 
 @keyframes od-create-menu-appear {
+
     from { opacity: 0; transform: translateY(-4px); }
+
     to { opacity: 1; transform: translateY(0); }
+
 }
 
 @media (max-width: 767.98px) {
+
     .o_onedrive_app {
+
         .od_toolbar { z-index: 45; }
+
         .od_create_dropdown { max-width: 100%; }
+
         .od_create_trigger { min-height: 40px; padding: 9px 12px; }
+
         .od_create_menu {
+
             width: 290px;
+
             max-width: calc(100vw - 28px);
+
             max-height: 510px;
+
             max-height: 65vh;
+
         }
+
         .od_create_menu_item { min-height: 43px; }
+
     }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .o_onedrive_app .od_create_menu { animation: none; }
+
     .o_onedrive_app .od_create_menu_item,
+
     .o_onedrive_app .od_create_trigger { transition: none; }
+
 }
+
+/* Selector de destino para mover y copiar elementos */
+.o_onedrive_app .od_move_overlay { position:fixed; inset:0; z-index:1100; background:rgba(15,23,42,.48); display:flex; align-items:center; justify-content:center; padding:20px; }
+.o_onedrive_app .od_move_dialog { width:min(620px,100%); max-height:85vh; background:#fff; border-radius:16px; box-shadow:0 24px 70px rgba(0,0,0,.20); display:flex; flex-direction:column; overflow:hidden; }
+.o_onedrive_app .od_move_dialog header, .o_onedrive_app .od_move_dialog footer { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #e2e8f0; gap:12px; }
+.o_onedrive_app .od_move_dialog footer { border-top:1px solid #e2e8f0; border-bottom:0; justify-content:flex-end; }
+.o_onedrive_app .od_move_dialog h3 { margin:0; font-size:18px; font-weight:650; }
+.o_onedrive_app .od_move_dialog > p { margin:10px 20px; color:#64748b; }
+.o_onedrive_app .od_move_breadcrumb { display:flex; align-items:center; gap:4px; padding:8px 16px; overflow-x:auto; border-bottom:1px solid #e2e8f0; }
+.o_onedrive_app .od_move_folders { min-height:180px; max-height:44vh; overflow-y:auto; padding:10px; }
+.o_onedrive_app .od_move_folder { width:100%; display:flex; align-items:center; gap:14px; background:#fff; border:0; border-radius:8px; padding:12px; text-align:left; color:#0f172a; }
+.o_onedrive_app .od_move_folder:hover { background:#eff6ff; }
+.o_onedrive_app .od_move_folder .bi-folder-fill { color:#eab308; font-size:21px; }
+.o_onedrive_app .od_move_folder span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

@@ -132,6 +132,10 @@
                     </t>
                     <t t-if="state.selected.size > 0">
                         <span class="od_selcount"><i class="bi bi-check-circle-fill"/> <t t-esc="state.selected.size"/> seleccionados</span>
+                        <button t-if="!selectorMode and canEdit()" class="btn btn-outline-primary" t-on-click="() => this.openMoveDialog('move')"><i class="bi bi-folder-symlink"/> Mover a...</button>
+                        <button t-if="!selectorMode and canEdit()" class="btn btn-outline-primary" t-on-click="() => this.openMoveDialog('copy')"><i class="bi bi-files"/> Copiar a...</button>
+                        <button t-if="!selectorMode" class="btn btn-outline-secondary" t-on-click="() => this.downloadSelected()"><i class="bi bi-download"/> Descargar</button>
+                        <button t-if="!selectorMode" class="btn btn-light" t-on-click="() => this.clearSelectedItems()">Cancelar selección</button>
                         <button t-if="!selectorMode and canManage()" class="btn btn-danger" t-on-click="() => this.deleteSelected()"><i class="bi bi-trash"/> Eliminar</button>
                     </t>
                     <div class="od_viewswitch">
@@ -242,7 +246,7 @@
                             ·
                             <t t-esc="formatDate(file.lastModifiedDateTime)"/>
                         </div>
-                        <div class="od_card_author"><span class="od_avatar"><t t-esc="getModifierInitials(file)"/></span><t t-esc="getModifiedBy(file)"/></div>
+                        <div class="od_card_author" t-att-title="'Creado por: '+ getCreatedBy(file)"><span class="od_avatar"><t t-esc="getCreatorInitials(file)"/></span><t t-esc="getCreatedBy(file)"/></div>
                     </div>
 
                     <div t-if="!selectorMode" class="od_card_actions">
@@ -273,7 +277,7 @@
                     <i t-if="state.sortBy === 'name'"
                        t-att-class="`bi bi-caret-${state.sortDir === 'asc' ? 'up' : 'down'}-fill`"/>
                 </div>
-                <div class="od_col_author">Modificado por</div>
+                <div class="od_col_author">Creado por</div>
                 <div class="od_col_modified sortable" t-on-click="() => this.setSort('modified')">
                     Última modificación
                     <i t-if="state.sortBy === 'modified'"
@@ -300,7 +304,7 @@
                         <i t-att-class="`bi ${ic.icon} od_listicon`" t-att-style="`color:${ic.color};`"/>
                         <span class="od_listname"><t t-esc="file.name"/></span>
                     </div>
-                    <div class="od_col_author"><span class="od_avatar"><t t-esc="getModifierInitials(file)"/></span><span t-esc="getModifiedBy(file)"/></div>
+                    <div class="od_col_author"><span class="od_avatar"><t t-esc="getCreatorInitials(file)"/></span><span t-esc="getCreatedBy(file)"/></div>
                     <div class="od_col_modified"><strong t-esc="formatRelativeDate(file.lastModifiedDateTime)"/><small t-esc="formatDate(file.lastModifiedDateTime)"/></div>
                     <div class="od_col_size">
                         <t t-if="file.folder">—</t>
@@ -344,6 +348,8 @@
                         <button t-if="!state.detailFile.folder" type="button" t-att-class="{'active': state.detailsTab === 'versions'}" t-on-click="() => { state.detailsTab = 'versions'; this.loadVersions(state.detailFile); }">Versiones</button>
                     </div>
                     <dl t-if="state.detailsTab === 'details'" class="od_details_list">
+                        <div><dt>Creado por</dt><dd><span class="od_avatar"><t t-esc="getCreatorInitials(state.detailFile)"/></span><t t-esc="getCreatedBy(state.detailFile)"/></dd></div>
+                        <div><dt>Fecha de creación</dt><dd t-esc="formatDate(state.detailFile.createdDateTime)"/></div>
                         <div><dt>Modificado por</dt><dd><span class="od_avatar"><t t-esc="getModifierInitials(state.detailFile)"/></span><t t-esc="getModifiedBy(state.detailFile)"/></dd></div>
                         <div><dt>Última modificación</dt><dd><strong t-esc="formatRelativeDate(state.detailFile.lastModifiedDateTime)"/><small t-esc="formatDate(state.detailFile.lastModifiedDateTime)"/></dd></div>
                         <div><dt>Ubicación</dt><dd><i class="bi bi-folder2"/><t t-esc="getCurrentPath()"/></dd></div>
@@ -369,6 +375,23 @@
             </div>
         </main>
 
+        <!-- Selector de carpeta de destino (sin salir de Odoo) -->
+        <div t-if="state.moveDialog.open" class="od_move_overlay">
+            <div class="od_move_dialog" role="dialog" aria-modal="true">
+                <header><h3><i class="bi bi-folder-symlink"/> <t t-esc="state.moveDialog.action === 'copy' ? 'Copiar a...' : 'Mover a...'"/></h3><button class="btn" t-att-disabled="state.moveDialog.busy" t-on-click="() => this.closeMoveDialog()"><i class="bi bi-x-lg"/></button></header>
+                <p><t t-esc="(_operationItems || []).length"/> elemento(s) seleccionado(s)</p>
+                <div class="od_move_breadcrumb"><button class="btn btn-sm" t-on-click="() => this.loadMoveFolders(null, [])">Raíz</button>
+                    <t t-foreach="state.moveDialog.path" t-as="crumb" t-key="crumb.id"><i class="bi bi-chevron-right"/><button class="btn btn-sm" t-on-click="() => this.loadMoveFolders(crumb.id, state.moveDialog.path.slice(0, crumb_index + 1))"><t t-esc="crumb.name"/></button></t>
+                </div>
+                <div class="od_move_folders">
+                    <p t-if="state.moveDialog.loading">Cargando carpetas...</p>
+                    <t t-foreach="state.moveDialog.folders" t-as="folder" t-key="folder.id"><button class="od_move_folder" t-att-disabled="state.moveDialog.busy" t-on-click="() => this.loadMoveFolders(folder.id, [...state.moveDialog.path, {id: folder.id, name: folder.name}])"><i class="bi bi-folder-fill"/><span t-esc="folder.name"/><i class="bi bi-chevron-right"/></button></t>
+                    <p t-if="!state.moveDialog.loading and !state.moveDialog.folders.length" class="text-muted">No hay subcarpetas.</p>
+                </div>
+                <footer><button class="btn btn-light" t-att-disabled="state.moveDialog.busy" t-on-click="() => this.closeMoveDialog()">Cancelar</button><button class="btn btn-primary" t-att-disabled="state.moveDialog.busy or state.moveDialog.loading" t-on-click="() => this.executeMoveDialog()"><t t-esc="state.moveDialog.busy ? 'Procesando...' : 'Confirmar destino'"/></button></footer>
+            </div>
+        </div>
+
         <!-- CONTEXT MENU -->
         <div t-if="state.ctxMenu.open and state.ctxMenu.file" class="od_ctxmenu"
              t-att-style="`top:${state.ctxMenu.y}px; left:${state.ctxMenu.x}px;`">
@@ -378,6 +401,8 @@
             <button t-if="!selectorMode and state.ctxMenu.file and !state.ctxMenu.file.folder" class="btn" t-on-click="() => this.downloadItem(state.ctxMenu.file)">
                 <i class="bi bi-download"/> Descargar
             </button>
+            <button t-if="!selectorMode and canEdit()" class="btn" t-on-click="() => this.openMoveDialog('move', [state.ctxMenu.file])"><i class="bi bi-folder-symlink"/> Mover a...</button>
+            <button t-if="!selectorMode and canEdit()" class="btn" t-on-click="() => this.openMoveDialog('copy', [state.ctxMenu.file])"><i class="bi bi-files"/> Copiar a...</button>
             <button t-if="!selectorMode and canManage()" class="btn" t-on-click="() => this.shareItem(state.ctxMenu.file)">
                 <i class="bi bi-share"/> Compartir
             </button>
