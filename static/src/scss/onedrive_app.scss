@@ -1,3 +1,7 @@
+/* Microsoft 365 / Odoo 19 — SCSS aislado.
+   Los estilos del explorador usan .o_onedrive_app.
+   Los diálogos usan clases propias od_* para no tocar componentes de Odoo.
+   Evitar Sass min() mezclando px y % (error Incompatible units). */
 /* Microsoft 365 - OneDrive y SharePoint | Odoo 19 | SCSS compatible sin anidamientos */
 .o_onedrive_app {
   position: relative;
@@ -1940,7 +1944,8 @@ to {
   padding: 20px;
 }
 .o_onedrive_app .od_move_dialog {
-  width: min(620px,100%);
+  width: 100%;
+  max-width: 620px;
   max-height: 85vh;
   background: #fff;
   border-radius: 16px;
