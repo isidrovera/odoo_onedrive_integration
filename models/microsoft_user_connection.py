@@ -59,9 +59,9 @@ class MicrosoftUserConnection(models.Model):
     def _check_owner_or_admin(self):
         self.ensure_one()
         user = self.env.user
-        if self.user_id != user and not user.has_group("odoo_onedrive_integration.group_microsoft_admin"):
+        if self.sudo().user_id.id != user.id and not user.has_group("odoo_onedrive_integration.group_microsoft_admin"):
             raise AccessError(_("No puede administrar la conexión Microsoft de otro usuario."))
-        if not self.active or not self.tenant_id.active:
+        if not self.sudo().active or not self.sudo().tenant_id.active:
             raise UserError(_("La conexión o el tenant Microsoft están desactivados."))
 
     def _scope(self):
@@ -73,7 +73,8 @@ class MicrosoftUserConnection(models.Model):
     def get_auth_url(self):
         self.ensure_one()
         self._check_owner_or_admin()
-        if not self.tenant_id.client_id or not self.tenant_id.redirect_uri:
+        tenant = self.sudo().tenant_id
+        if not tenant.client_id or not tenant.redirect_uri:
             raise UserError(_("Configure primero la aplicación Microsoft y su URL de retorno."))
         state = "u." + secrets.token_urlsafe(40)
         self.sudo().write({
@@ -82,21 +83,21 @@ class MicrosoftUserConnection(models.Model):
             "last_error": False,
         })
         params = {
-            "client_id": self.tenant_id.client_id,
+            "client_id": tenant.client_id,
             "response_type": "code",
-            "redirect_uri": self.tenant_id.redirect_uri,
+            "redirect_uri": tenant.redirect_uri,
             "response_mode": "query",
             "scope": self._scope(),
             "state": state,
-            "login_hint": self.email.strip(),
+            "login_hint": self.sudo().email.strip(),
         }
-        return f"{self.tenant_id._authority()}/oauth2/v2.0/authorize?{urlencode(params)}"
+        return f"{tenant._authority()}/oauth2/v2.0/authorize?{urlencode(params)}"
 
     def exchange_code_for_token(self, code, state):
         self.ensure_one()
         self._check_owner_or_admin()
         # El controlador comprueba además que el callback pertenece al usuario Odoo.
-        if self.user_id != self.env.user:
+        if self.sudo().user_id.id != self.env.user.id:
             raise AccessError(_("El retorno OAuth debe completarlo el propietario de la conexión."))
         record = self.sudo()
         if not state or not secrets.compare_digest(str(state), str(record.oauth_state or "")) or not code:
@@ -107,11 +108,12 @@ class MicrosoftUserConnection(models.Model):
         # Consumir el estado antes de solicitar el token. En errores la transacción
         # habitual de Odoo se revierte, por lo que no se informa falsamente conexión.
         record.write({"oauth_state": False, "oauth_state_expiry": False})
-        result = self.tenant_id._token_request({
-            "client_id": self.tenant_id.client_id,
-            "client_secret": self.tenant_id.client_secret,
+        tenant = record.tenant_id
+        result = tenant._token_request({
+            "client_id": tenant.client_id,
+            "client_secret": tenant.client_secret,
             "code": code,
-            "redirect_uri": self.tenant_id.redirect_uri,
+            "redirect_uri": tenant.redirect_uri,
             "grant_type": "authorization_code",
             "scope": self._scope(),
         })
@@ -128,10 +130,10 @@ class MicrosoftUserConnection(models.Model):
         record.write({
             "entra_user_id": profile["id"],
             # Invitados B2B pueden tener un UPN #EXT#; conservar su correo real.
-            "email": profile.get("mail") or self.email,
+            "email": profile.get("mail") or record.email,
             "last_connected": fields.Datetime.now(),
         })
-        _logger.info("Microsoft 365: conexión delegada establecida usuario=%s tenant=%s", self.user_id.id, self.tenant_id.id)
+        _logger.info("Microsoft 365: conexión delegada establecida usuario=%s tenant=%s", record.user_id.id, tenant.id)
         return True
 
     def _save_token(self, result):
@@ -161,9 +163,10 @@ class MicrosoftUserConnection(models.Model):
         if not refresh:
             raise UserError(_("Debe conectar nuevamente su cuenta Microsoft."))
         try:
-            result = self.tenant_id._token_request({
-                "client_id": self.tenant_id.client_id,
-                "client_secret": self.tenant_id.client_secret,
+            tenant = self.sudo().tenant_id
+            result = tenant._token_request({
+                "client_id": tenant.client_id,
+                "client_secret": tenant.client_secret,
                 "refresh_token": refresh,
                 "grant_type": "refresh_token",
                 "scope": self._scope(),
@@ -171,7 +174,7 @@ class MicrosoftUserConnection(models.Model):
             self._save_token(result)
         except Exception:
             # No registrar tokens ni respuestas HTTP potencialmente sensibles.
-            _logger.warning("Microsoft 365: no se pudo renovar token usuario=%s tenant=%s", self.user_id.id, self.tenant_id.id)
+            _logger.warning("Microsoft 365: no se pudo renovar token usuario=%s tenant=%s", self.sudo().user_id.id, self.sudo().tenant_id.id)
             self.sudo().write({
                 "access_token": False,
                 "token_expiry": False,
@@ -212,5 +215,5 @@ class MicrosoftUserConnection(models.Model):
             "state": "not_connected",
             "last_error": False,
         })
-        _logger.info("Microsoft 365: conexión delegada desconectada usuario=%s tenant=%s", self.user_id.id, self.tenant_id.id)
+        _logger.info("Microsoft 365: conexión delegada desconectada usuario=%s tenant=%s", self.sudo().user_id.id, self.sudo().tenant_id.id)
         return True
