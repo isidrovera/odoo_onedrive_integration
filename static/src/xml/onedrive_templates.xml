@@ -212,7 +212,13 @@
             <t t-foreach="state.filteredFiles" t-as="file" t-key="file.id">
                 <t t-set="ic" t-value="getFileIcon(file)"/>
                 <div class="od_card"
-                     t-att-class="{'selected': isSelected(file)}"
+                     t-att-draggable="!selectorMode and canEdit() ? 'true' : 'false'"
+                     t-on-dragstart="(ev) => this.onItemDragStart(file, ev)"
+                     t-on-dragend="() => this.onItemDragEnd()"
+                     t-on-dragover="(ev) => this.onFolderDragOver(file, ev)"
+                     t-on-dragleave="(ev) => this.onFolderDragLeave(file, ev)"
+                     t-on-drop="(ev) => this.onFolderDrop(file, ev)"
+                     t-att-class="{'selected': isSelected(file), 'od_drop_target': state.dropFolderId === file.id}"
                      t-on-click="(ev) => this.selectForDetails(file, ev)"
                      t-on-dblclick="() => this.openFolder(file)"
                      t-on-contextmenu="(ev) => this.openCtxMenu(file, ev)">
@@ -293,7 +299,13 @@
             <t t-foreach="state.filteredFiles" t-as="file" t-key="file.id">
                 <t t-set="ic" t-value="getFileIcon(file)"/>
                 <div class="od_list_row"
-                     t-att-class="{'selected': isSelected(file)}"
+                     t-att-draggable="!selectorMode and canEdit() ? 'true' : 'false'"
+                     t-on-dragstart="(ev) => this.onItemDragStart(file, ev)"
+                     t-on-dragend="() => this.onItemDragEnd()"
+                     t-on-dragover="(ev) => this.onFolderDragOver(file, ev)"
+                     t-on-dragleave="(ev) => this.onFolderDragLeave(file, ev)"
+                     t-on-drop="(ev) => this.onFolderDrop(file, ev)"
+                     t-att-class="{'selected': isSelected(file), 'od_drop_target': state.dropFolderId === file.id}"
                      t-on-click="(ev) => this.selectForDetails(file, ev)"
                      t-on-dblclick="() => this.openFolder(file)"
                      t-on-contextmenu="(ev) => this.openCtxMenu(file, ev)">
