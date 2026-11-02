@@ -293,9 +293,13 @@ class MicrosoftGuest(models.Model):
                             raise UserError("El invitado ya existe. Actualice su estado antes de invitar.")
                         link = guest._record_invitation(invitation)
                         guest._send_invitation_email(link)
-                    if guest.entra_user_id:
-                        guest.action_apply_groups()
-                    guest._audit("invite", message="Invitado procesado desde Odoo.")
+                    # La invitación y la aplicación de membresías son operaciones
+                    # independientes. Un grupo puede contener otros invitados sin
+                    # entra_user_id: aplicar aquí todos sus miembros provocaría un
+                    # error y revertiría en Odoo el enlace ya enviado por correo.
+                    # Las membresías se gestionan con la acción explícita del grupo,
+                    # tras sincronizar las identidades pendientes.
+                    guest._audit("invite", message="Invitado procesado desde Odoo; membresías no modificadas.")
             except Exception as exc:
                 _logger.exception("[MICROSOFT][GUEST][INVITE_ERROR] tenant=%s guest=%s", guest.tenant_id.id, guest.id)
                 guest.sudo().with_context(tracking_disable=True).write({
