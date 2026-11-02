@@ -255,7 +255,7 @@ class MicrosoftGuest(models.Model):
         return url
 
     def action_invite(self):
-        """Crear invitados nuevos; para invitados existentes no reiniciar aceptación."""
+        """Crear nuevos o recuperar invitación pendiente sin duplicar identidades."""
         self._check_admin()
         from ..services.directory_service import DirectoryService
 
@@ -269,11 +269,24 @@ class MicrosoftGuest(models.Model):
                         guest._apply_remote_user(remote)
                         if guest.state == "accepted":
                             _logger.info("[MICROSOFT][GUEST][ALREADY_ACCEPTED] guest=%s", guest.id)
+                        elif guest.state == "blocked":
+                            raise UserError("El invitado está bloqueado en Microsoft Entra. Revise la cuenta antes de enviar una invitación.")
                         elif guest.invitation_url:
                             guest._send_invitation_email(guest.invitation_url)
+                        elif str(remote.get("externalUserState") or "").strip().lower() == "pendingacceptance":
+                            # Es el mismo invitado: restablecer la invitación pendiente,
+                            # obtener un enlace nuevo y enviarlo desde Odoo.
+                            _logger.info("[MICROSOFT][GUEST][PENDING_NO_LINK_RESET] guest=%s", guest.id)
+                            invitation = directory.reset_guest_invitation(
+                                remote["id"], guest.email, send_message=False,
+                            )
+                            link = guest._record_invitation(invitation)
+                            guest._send_invitation_email(link)
                         else:
-                            _logger.info("[MICROSOFT][GUEST][PENDING_NO_LINK] guest=%s", guest.id)
-                            raise UserError("El invitado ya existe pero no tiene un enlace reutilizable. Utilice Reenviar invitación.")
+                            raise UserError(
+                                "Microsoft no confirma una invitación pendiente. "
+                                "Sincronice el usuario y revise su estado en Entra."
+                            )
                     else:
                         invitation = directory.invite_guest(guest.email, guest.name, send_message=False)
                         if invitation.get("existingUser"):
@@ -310,7 +323,7 @@ class MicrosoftGuest(models.Model):
                     guest._apply_remote_user(remote)
                     if guest.state == "accepted":
                         raise UserError("La invitación ya fue aceptada. No se debe reenviar.")
-                    if str(remote.get("externalUserState") or "").lower() != "pendingacceptance":
+                    if str(remote.get("externalUserState") or "").strip().lower() != "pendingacceptance":
                         raise UserError("Microsoft no confirma que la invitación esté pendiente.")
                     invitation = directory.reset_guest_invitation(remote["id"], guest.email, send_message=False)
                     link = guest._record_invitation(invitation)
